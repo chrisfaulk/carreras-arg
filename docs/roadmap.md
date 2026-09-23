@@ -7,7 +7,7 @@
 | # | Objetivo | Done | Commit |
 |---|----------|------|--------|
 | 0.1 | Monorepo `pnpm` y `Turborepo`, `/backend` Nest y `/frontend` Next App Router, `/docs`, `.env.example` con validación zod al boot | `pnpm build` ok ✅ | `chore(repo): scaffold monorepo` |
-| 0.2 | Prisma schema completo (`user` con `is_admin/deleted_at/accepted_privacy_at`, `refresh_token` con `family_id`, `subject_attempt` con `annulled_at` y status solo `IN_PROGRESS/PENDING_FINAL/PASSED`, `audit_log`) + UQs e índices | `prisma migrate` ok | `chore(db): init schema` |
+| 0.2 | Prisma schema completo (`user` con `is_admin/deleted_at/accepted_privacy_at`, `refresh_token` con `family_id`, `subject_attempt` con `annulled_at` y status solo `IN_PROGRESS/PENDING_FINAL/PASSED`, `audit_log`) + UQs e índices | `prisma migrate` ok ✅ | `chore(db): init schema` |
 | 0.3 | RLS (`ENABLE + FORCE`, `SET LOCAL app.user_id`, catálogo público) + test 2 usuarios | RLS tests verdes | `chore(db): rls hardening` |
 | 0.4 | Lint y format `ESLint` y `Prettier`, Husky, CI GitHub Actions, regla anti-`PATCH` (CI falla si hay `Patch(` o `method: 'PATCH'`) | CI verde | `chore(tooling): lint+ci` |
 | 0.5 | Design tokens y `hugeicons` y layout base con footer `/legal/*` (SF y Medium y Linear) | Tokens sin hardcode | `feat(ui): design tokens` |

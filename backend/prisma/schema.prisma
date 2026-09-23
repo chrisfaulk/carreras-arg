@@ -1,0 +1,244 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CorrelativeType {
+  PREVIOUS
+  CONCURRENT
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  PENDING_FINAL
+  PASSED
+}
+
+enum Term {
+  FIRST
+  SECOND
+}
+
+enum InstanceType {
+  PARTIAL
+  PRACTICAL_WORK
+  DELIVERABLE
+  OTHER
+}
+
+model University {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name      String   @unique
+  createdBy String?  @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedBy String?  @map("updated_by") @db.Uuid
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  careers   Career[]
+
+  @@map("university")
+}
+
+model Career {
+  id           String      @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  universityId String      @map("university_id") @db.Uuid
+  name         String
+  createdBy    String?     @map("created_by") @db.Uuid
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedBy    String?     @map("updated_by") @db.Uuid
+  updatedAt    DateTime    @updatedAt @map("updated_at") @db.Timestamptz
+  university   University  @relation(fields: [universityId], references: [id])
+  studyPlans   StudyPlan[]
+
+  @@unique([universityId, name])
+  @@map("career")
+}
+
+model StudyPlan {
+  id                String                    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  careerId          String                    @map("career_id") @db.Uuid
+  year              Int
+  requiredElectives Int                       @default(0) @map("required_electives")
+  createdBy         String?                   @map("created_by") @db.Uuid
+  createdAt         DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+  updatedBy         String?                   @map("updated_by") @db.Uuid
+  updatedAt         DateTime                  @updatedAt @map("updated_at") @db.Timestamptz
+  career            Career                    @relation(fields: [careerId], references: [id])
+  subjects          Subject[]
+  enrollments       UserStudyPlanEnrollment[]
+
+  @@unique([careerId, year])
+  @@index([year])
+  @@map("study_plan")
+}
+
+model Subject {
+  id            String               @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  studyPlanId   String               @map("study_plan_id") @db.Uuid
+  name          String
+  isElective    Boolean              @default(false) @map("is_elective")
+  requiresFinal Boolean              @default(true) @map("requires_final")
+  createdBy     String?              @map("created_by") @db.Uuid
+  createdAt     DateTime             @default(now()) @map("created_at") @db.Timestamptz
+  updatedBy     String?              @map("updated_by") @db.Uuid
+  updatedAt     DateTime             @updatedAt @map("updated_at") @db.Timestamptz
+  studyPlan     StudyPlan            @relation(fields: [studyPlanId], references: [id])
+  correlatives  SubjectCorrelative[] @relation("SubjectToCorrelative")
+  requiredBy    SubjectCorrelative[] @relation("CorrelativeToSubject")
+  attempts      SubjectAttempt[]
+
+  @@unique([studyPlanId, name])
+  @@index([name])
+  @@map("subject")
+}
+
+model SubjectCorrelative {
+  id                   BigInt          @id @default(autoincrement())
+  subjectId            String          @map("subject_id") @db.Uuid
+  correlativeSubjectId String          @map("correlative_subject_id") @db.Uuid
+  type                 CorrelativeType
+  subject              Subject         @relation("SubjectToCorrelative", fields: [subjectId], references: [id])
+  correlativeSubject   Subject         @relation("CorrelativeToSubject", fields: [correlativeSubjectId], references: [id])
+
+  @@unique([subjectId, correlativeSubjectId])
+  @@map("subject_correlative")
+}
+
+model User {
+  id                String                    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  username          String                    @unique
+  email             String                    @unique
+  displayName       String                    @map("display_name")
+  passwordHash      String?                   @map("password_hash")
+  googleSub         String?                   @unique @map("google_sub")
+  isPublic          Boolean                   @default(false) @map("is_public")
+  isEmailVerified   Boolean                   @default(false) @map("is_email_verified")
+  isAdmin           Boolean                   @default(false) @map("is_admin")
+  acceptedPrivacyAt DateTime?                 @map("accepted_privacy_at") @db.Timestamptz
+  deletedAt         DateTime?                 @map("deleted_at") @db.Timestamptz
+  createdBy         String?                   @map("created_by") @db.Uuid
+  createdAt         DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+  updatedBy         String?                   @map("updated_by") @db.Uuid
+  updatedAt         DateTime                  @updatedAt @map("updated_at") @db.Timestamptz
+  enrollments       UserStudyPlanEnrollment[]
+  refreshTokens     RefreshToken[]
+  auditLogs         AuditLog[]
+
+  @@index([deletedAt])
+  @@map("user")
+}
+
+model UserStudyPlanEnrollment {
+  id          String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId      String           @map("user_id") @db.Uuid
+  studyPlanId String           @map("study_plan_id") @db.Uuid
+  createdBy   String?          @map("created_by") @db.Uuid
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedBy   String?          @map("updated_by") @db.Uuid
+  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+  user        User             @relation(fields: [userId], references: [id])
+  studyPlan   StudyPlan        @relation(fields: [studyPlanId], references: [id])
+  attempts    SubjectAttempt[]
+
+  @@unique([userId, studyPlanId])
+  @@map("user_study_plan_enrollment")
+}
+
+model SubjectAttempt {
+  id                    String                  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  studyPlanEnrollmentId String                  @map("study_plan_enrollment_id") @db.Uuid
+  subjectId             String                  @map("subject_id") @db.Uuid
+  status                AttemptStatus
+  finalGrade            Int?                    @map("final_grade")
+  termYear              Int?                    @map("term_year")
+  term                  Term?
+  annulledAt            DateTime?               @map("annulled_at") @db.Timestamptz
+  createdBy             String?                 @map("created_by") @db.Uuid
+  createdAt             DateTime                @default(now()) @map("created_at") @db.Timestamptz
+  updatedBy             String?                 @map("updated_by") @db.Uuid
+  updatedAt             DateTime                @updatedAt @map("updated_at") @db.Timestamptz
+  enrollment            UserStudyPlanEnrollment @relation(fields: [studyPlanEnrollmentId], references: [id])
+  subject               Subject                 @relation(fields: [subjectId], references: [id])
+  instances             EvaluationInstance[]
+  finalExams            FinalExam[]
+
+  @@index([studyPlanEnrollmentId, subjectId])
+  @@index([status])
+  @@index([annulledAt])
+  @@map("subject_attempt")
+}
+
+model EvaluationInstance {
+  id               String             @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  subjectAttemptId String             @map("subject_attempt_id") @db.Uuid
+  type             InstanceType
+  customTypeName   String?            @map("custom_type_name")
+  grade            Int?
+  examDate         DateTime?          @map("exam_date") @db.Date
+  minRegularize    Int                @default(4) @map("min_regularize")
+  minPromote       Int                @default(7) @map("min_promote")
+  sortOrder        Int                @map("sort_order")
+  createdBy        String?            @map("created_by") @db.Uuid
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedBy        String?            @map("updated_by") @db.Uuid
+  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+  attempt          SubjectAttempt     @relation(fields: [subjectAttemptId], references: [id])
+  retakes          EvaluationRetake[]
+
+  @@map("evaluation_instance")
+}
+
+model EvaluationRetake {
+  id                   String             @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  evaluationInstanceId String             @map("evaluation_instance_id") @db.Uuid
+  grade                Int
+  examDate             DateTime?          @map("exam_date") @db.Date
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  instance             EvaluationInstance @relation(fields: [evaluationInstanceId], references: [id])
+
+  @@map("evaluation_retake")
+}
+
+model FinalExam {
+  id               String         @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  subjectAttemptId String         @map("subject_attempt_id") @db.Uuid
+  grade            Int?
+  examDate         DateTime?      @map("exam_date") @db.Date
+  isExternalExam   Boolean        @default(false) @map("is_external_exam")
+  createdBy        String?        @map("created_by") @db.Uuid
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedBy        String?        @map("updated_by") @db.Uuid
+  updatedAt        DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+  attempt          SubjectAttempt @relation(fields: [subjectAttemptId], references: [id])
+
+  @@map("final_exam")
+}
+
+model RefreshToken {
+  id        String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @map("token_hash")
+  familyId  String    @map("family_id") @db.Uuid
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@map("refresh_token")
+}
+
+model AuditLog {
+  id        BigInt   @id @default(autoincrement())
+  actorId   String   @map("actor_id") @db.Uuid
+  action    String
+  entity    String
+  entityId  String   @map("entity_id") @db.Uuid
+  diffJson  Json     @map("diff_json")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  actor     User     @relation(fields: [actorId], references: [id])
+
+  @@index([entity, entityId])
+  @@map("audit_log")
+}
