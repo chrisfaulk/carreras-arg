@@ -13,7 +13,7 @@
 - **Responsive first**, disposicion consistente entre paginas.
 - **Skeletons** de carga consistentes con la estructura de la pagina (no spinners genericos).
 - **Empty states** claros con CTA para enmendar (ej. "No tenés materias cursables, aprobá X").
-- **A11y (WCAG 2.1 AA, verificable):** `aria-labels`, foco visible (`:focus-visible` con outline), contraste mínimo 4.5:1 texto / 3:1 gráfico, navegación completa por teclado (Tab, Shift+Tab, Enter, Escape), `alt` obligatorio en toda `img`, landmarks semanticos (`<main>`, `<nav>`, `<header>`), textos de botón verbo+objeto ("Guardar cambios" no "Aceptar"), formulario con `label` asociado y mensajes de error vinculados via `aria-describedby`. Validación con `axe-core` o Lighthouse a11y 100 en CI (ver `roadmap.md` Fase 2.2).
+- **A11y (WCAG 2.1 AA, verificable):** `aria-labels`, foco visible (`:focus-visible` con outline), contraste mínimo 4.5:1 texto / 3:1 gráfico, navegación completa por teclado (Tab, Shift+Tab, Enter, Escape), `alt` obligatorio en toda `img`, landmarks semanticos (`<main>`, `<nav>`, `<header>`), textos de botón verbo+objeto ("Guardar cambios" no "Aceptar"), formulario con `label` asociado y mensajes de error vinculados via `aria-describedby`. Validación con `axe-core` o Lighthouse a11y 100 en CI (ver `roadmap.md` Fase 3.5).
 - Consistencia: misma grilla, mismos tokens, mismos patrones de error, toast y skeleton en todo el app.
 - **Legal y cookies:** banner informativo no bloqueante para cookies necesarias (ver `legal/cookies.md`), footer global con links a `/legal/privacy`, `/legal/terms`, `/legal/cookies` y contacto GitHub/email.
 

@@ -1,0 +1,19 @@
+:root {
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-4: 1rem;
+  --spacing-8: 2rem;
+  --font-size-sm: 0.875rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --color-bg: #fafafa;
+  --color-fg: #171717;
+  --color-muted: #737373;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+}

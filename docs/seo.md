@@ -13,4 +13,4 @@ Checklist obligatorio en cada pagina (ver [ui-ux.md](./ui-ux.md) y [architecture
 
 Implementación: Next Metadata API (`export const metadata`), `app/robots.ts` (allow `/`, disallow `/dashboard`, `/api`), `app/sitemap.ts`, `public/llm.txt`. Sitemap dinámico: queries `select id, updated_at` con `LIMIT` para carreras/planes publicos. Ver `database.md`.
 
-Referencias: [standards.md](./standards.md) (sin hardcode, tokens), [roadmap.md](./roadmap.md) Fase 1.11, [legal/privacy.md](./legal/privacy.md).
+Referencias: [standards.md](./standards.md) (sin hardcode, tokens), [roadmap.md](./roadmap.md) Fase 3.2, [legal/privacy.md](./legal/privacy.md).
