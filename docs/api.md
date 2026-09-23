@@ -1,6 +1,6 @@
 # API
 
-> REST clasico, sin versionado. Solo `GET`, `POST`, `PUT`, `DELETE`. Prohibido `PATCH` en todo el repo.
+> REST clasico, sin versionado. Solo `GET`, `POST`, `PUT`, `DELETE`. Prohibido `PATCH` en todo el repo (lo verifica `pnpm lint`).
 
 ## Convenciones generales
 

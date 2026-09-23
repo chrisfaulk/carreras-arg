@@ -33,7 +33,7 @@ Reglas:
 - Relaciones explicitas en DB (FKs), implicitas en código (IDs).
 - Toda mutación de cursada o evaluación corre en una transacción Prisma que primero hace `SELECT FOR UPDATE` sobre `user_study_plan_enrollment`. Serializa escrituras concurrentes del mismo plan y evita races en creación, cierre, anulación y finales. Timeout corto con `409`/`503` ante contención.
 - Disponibilidad y agregados siempre sincrónicos en request (MVP); solo el hard-delete de usuarios usa cron diario (`@Cron`, sin worker externo). Outbox y S3 presigned para archivos y opiniones en v2.
-- API solo `PUT` para mutaciones (`POST` solo crear, `PUT` para actualizar/transicionar, `DELETE` para borrar). Prohibido `PATCH` en todo el repo; el CI falla si aparece `Patch(` en el backend o `method: 'PATCH'` en el frontend.
+- API solo `PUT` para mutaciones (`POST` solo crear, `PUT` para actualizar/transicionar, `DELETE` para borrar). Prohibido `PATCH` en todo el repo; lo verifica `pnpm lint` en CI.
 
 ## Frontend: bulletproof-react con RSC
 

@@ -46,7 +46,7 @@ pnpm dev
 
 ## Contribuir
 
-1. Lee [docs/standards.md](./docs/standards.md) (ESLint y Prettier, commits `type(module): msg`, sin comentarios, DTO projections, prohibido `PATCH`).
+1. Lee [docs/standards.md](./docs/standards.md) (Oxlint, ESLint y Prettier, commits `type(module): msg`, sin comentarios, DTO projections, prohibido `PATCH`).
 2. Elige un checkpoint de [docs/roadmap.md](./docs/roadmap.md).
 3. PR chico, un checkpoint por PR. Tests caja negra solo para logica critica (agregado, disponibilidad, cierre, promedios).
 

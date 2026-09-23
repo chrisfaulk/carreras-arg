@@ -8,7 +8,9 @@
 
 ## Formato y commits
 
-- **ESLint y Prettier** (TS) y `Prisma format` en pre commit. `Husky` y `lint-staged`.
+- **Oxlint, ESLint y Prettier** (TS) y `Prisma format` en pre commit. `Husky` y `lint-staged`.
+  Orden: `oxlint --fix`, luego Prettier, luego lint de nuevo. Oxlint cubre evidencia
+  de tipos y colecciones; ESLint cubre veto de `PATCH` y de `useEffect`.
 - Commits: `type(module): explanation`. Ejemplos: `feat(tracking): compute available subjects`, `fix(auth): rotate refresh`, `chore(db): add index`.
 - Un checkpoint es un commit significativo (ver [roadmap.md](./roadmap.md)). PRs chicos, un checkpoint por PR.
 
@@ -16,8 +18,25 @@
 
 - DDD por modulos Nest (`domain`, `application`, `infra`, `interfaces`), `api/` público vs `internal/` privado.
 - Read models para cross module; nunca JOIN cross module. Ver [architecture.md](./architecture.md).
-- API solo `PUT` para actualizar o transicionar (`POST` solo crear, `PUT` para mutar, `DELETE` para borrar). Prohibido `PATCH` en backend y frontend; el CI lo verifica.
-- Sin `useEffect` ni `useLayoutEffect`. RSC y Server Actions. Ver [ui-ux.md](./ui-ux.md).
+- API solo `PUT` para actualizar o transicionar (`POST` solo crear, `PUT` para mutar, `DELETE` para borrar). Prohibido `PATCH` en backend y frontend; lo verifica `pnpm lint` en CI.
+- Sin `useEffect` ni `useLayoutEffect`. RSC y Server Actions; lo verifica `pnpm lint`. Ver [ui-ux.md](./ui-ux.md).
+
+## Evidencia de tipos
+
+- Fronteras con `zod`: lo que entra sin validar se parsea, no se angosta con `typeof`
+  ni se firma como `unknown`. `typeof x === "undefined"` solo vale como prueba de existencia.
+- Firmas sin `unknown`, `object` ni diccionarios inseguros (`Record<string, unknown>`,
+  `{ [k: string]: object }`). Proyecciones DTO con `Prisma select`, no entidades completas.
+- Sin `as` encadenados, sin ensanchar un valor conocido a `unknown`/`object` para
+  reafirmarlo despues, y sin pasar valores ya tipados a predicados `unknown`.
+- Sin spreads condicionales con rama `{}` para omitir campos; la omision no equivale a `undefined`.
+
+## Colecciones
+
+- Sin `filter().map()` ni `map().filter()` eager; un `flatMap` o un reducer que empuja
+  a un acumulador local, o iteradores lazy (`.values().filter().map().toArray()`).
+- Acumuladores de `reduce` se mutan y se devuelven, no se copian (`concat`, `slice`,
+  `Object.assign({}, acc, ...)`); tampoco spreads acumulativos en loops.
 
 ## Datos y performance
 
@@ -40,7 +59,7 @@
 ## Testing
 
 - Solo lógica crítica: `tracking` (agregado visible, disponibilidad computada, máquina, cierre con promedio/redondeo/anulación), `evaluation` (mejor-nota, bloqueo de final), promedios x2 y avance.
-- Tests caja negra: `given input hacia expect output`, sin acoplar a implementación. Se debe poder reescribir el dominio sin tocar tests, y que los mismos sirvan para verificar que la nueva implementación es correcta.
+- Tests caja negra: `given input hacia expect output`, sin acoplar a implementación. Se debe poder reescribir el dominio sin tocar tests, y que los mismos sirvan para verificar que la nueva implementación es correcta. Sin mocks de modulos (`vi.mock`, `jest.mock`): seams reales.
 - Sin tests para one liners triviales.
 
 ## Accesibilidad y SEO
