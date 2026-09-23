@@ -14,6 +14,8 @@
 
 ## Fase 1: Identidad y catálogo
 
+> Mapa de scaffold (Fase 0) para lookup rápido: `backend/src/env.ts` (keys 1.1/1.2/1.4), `backend/prisma/schema.prisma` (`user`+`refresh_token` 1.1–1.3, catálogo+`audit_log` 1.5–1.9), `backend/src/prisma.service.ts` + `backend/prisma/rls-check.sql` (transversal), `backend/src/main.ts` + `app.module.ts` (bootstrap), `frontend/app/` + `frontend/lib/` + tokens (base UI para 1.1–1.3).
+
 | # | Objetivo | Done | Commit |
 |---|----------|------|--------|
 | 1.1 | `POST /auth/register` + `GET /auth/verify?token` (Resend, token 24h, `accepted_privacy_at`, checkbox no pre-tildado) | Registro y verify e2e | `feat(identity): register+verify` |
