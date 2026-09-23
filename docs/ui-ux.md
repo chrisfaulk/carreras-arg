@@ -17,6 +17,16 @@
 - Consistencia: misma grilla, mismos tokens, mismos patrones de error, toast y skeleton en todo el app.
 - **Legal y cookies:** banner informativo no bloqueante para cookies necesarias (ver `legal/cookies.md`), footer global con links a `/legal/privacy`, `/legal/terms`, `/legal/cookies` y contacto GitHub/email.
 
+## Rendimiento de carga
+
+Regla general para cualquier componente o página, presente y futura:
+
+- **Prefetch y caché:** navegar solo con `<Link>` (prefetch en hover y foco por defecto, no desactivarlo; nunca `window.location` para rutas internas). La caché del router cubre el volver atrás sin refetch; verificar caché antes de mostrar placeholder. Islands client con TanStack Query (caché + optimistic UI con rollback).
+- **Velocidad:** `loading.tsx` por segmento con streaming (cada parte resuelve al llegar su data, sin esperar al resto). Shimmer rapido, ciclo menor a 1s como token.
+- **Datos:** queries colocadas en el segmento que las usa, en paralelo (`Promise.all` o rutas paralelas). Sin waterfalls (una request que bloquea la siguiente); lo lento fuera del critical path o dividido.
+- **Spinners:** prohibidos (skeleton consistente, contenido prefetcheado o nada). Sin iframes de terceros ni video pesado (CSP `script-src 'self'`, ver [standards.md](./standards.md)).
+- **Shell estático:** navegación, header, layout y footer renderizan en el primer frame. Nunca un `loading.tsx` raíz que bloquee la navegación.
+
 ## Frontend
 
 `bulletproof-react` en Next: `app/`, `features/*`, `components/ui`, `lib/api`. RSC por defecto, islands client solo para interactividad. Ver [architecture.md](./architecture.md) y [standards.md](./standards.md).
