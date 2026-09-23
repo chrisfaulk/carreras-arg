@@ -2,6 +2,20 @@
 // Oxlint (ver oxlint.config.ts) cubre evidencia de tipos y colecciones;
 // aqui solo lo que Oxlint no expresa: veto de PATCH y de useEffect.
 
+import tsParser from "@typescript-eslint/parser";
+
+const ignores = {
+  ignores: ["**/node_modules/**", "**/dist/**", "**/.next/**", "tools/oxlint/anti-slop/**"],
+};
+
+const tsLanguage = {
+  files: ["backend/**/*.ts", "frontend/**/*.{ts,tsx}"],
+  languageOptions: {
+    parser: tsParser,
+    parserOptions: { ecmaFeatures: { jsx: true } },
+  },
+};
+
 const noPatch = {
   files: ["backend/**/*.ts", "frontend/**/*.{ts,tsx}"],
   rules: {
@@ -44,4 +58,4 @@ const noUseEffect = {
   },
 };
 
-export default [noPatch, noUseEffect];
+export default [ignores, tsLanguage, noPatch, noUseEffect];

@@ -1,0 +1,7 @@
+tools/
+oxlint.config.ts
+frontend/next-env.d.ts
+backend/dist/
+frontend/.next/
+pnpm-lock.yaml
+*.md
