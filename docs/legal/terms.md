@@ -47,7 +47,7 @@ Proyecto comunitario sin SLA. Se ofrece "tal cual". No se garantiza disponibilid
 
 ## 10. Terminación
 
-Podes borrar tu cuenta via `DELETE /user/me` (ver `legal/privacy.md`). El proyecto puede suspender cuentas que violen estos Términos.
+Podes borrar tu cuenta via `DELETE /users/me` (ver `legal/privacy.md`). El proyecto puede suspender cuentas que violen estos Términos.
 
 ## 11. Ley aplicable
 

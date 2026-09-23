@@ -1,6 +1,6 @@
 # Política de privacidad
 
-> Vigencia: 2026-09-22. Version 1.0. Historial de cambios al final.
+> Vigencia: 2026-09-23. Version 1.1. Historial de cambios al final.
 
 ## 1. Responsable
 
@@ -36,8 +36,8 @@ No se solicita DNI, legajo, domicilio, telefono ni datos de pago. `display_name`
 ## 4. Conservación y retención
 
 - Cuenta activa: mientras el usuario mantenga la cuenta.
-- Borrado: `DELETE /user/me` anonimiza `created_by`/`updated_by`, revoca `refresh_token` y elimina `subject_attempt` en cascada logica. Soft delete 30 dias, luego hard delete. Ver `privacy.md` de implementación y `database.md`.
-- Export: `GET /user/me/export` entrega JSON con enrollments y attempts.
+- Borrado: `DELETE /users/me` anonimiza `created_by`/`updated_by`, revoca `refresh_token` y elimina `subject_attempt` en cascada logica. Soft delete 30 dias, luego hard delete. Ver `privacy.md` de implementación y `database.md`.
+- Export: `GET /users/me/export` entrega JSON con enrollments y attempts.
 - Logs: nunca contienen PII ni `password_hash`/`token_hash`.
 
 ## 5. Destinatarios y transferencias
@@ -51,9 +51,9 @@ No se solicita DNI, legajo, domicilio, telefono ni datos de pago. `display_name`
 
 Acceso, rectificación, actualización y supresión via:
 
-- `PATCH /user/me` (rectificación)
-- `GET /user/me/export` (acceso)
-- `DELETE /user/me` (supresion)
+- `PUT /users/me` (rectificación)
+- `GET /users/me/export` (acceso)
+- `DELETE /users/me` (supresion)
 
 Reclamos ante Agencia de Acceso a la Información Publica (AAIP) si corresponde.
 
@@ -71,3 +71,4 @@ Cambios se publican con nueva fecha de vigencia y entrada en changelog. Cambios 
 ## Changelog
 
 - 1.0 (2026-09-22): version inicial.
+- 1.1 (2026-09-23): corrige endpoint de perfil a `PUT /users/me`.
