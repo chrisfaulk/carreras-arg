@@ -26,6 +26,8 @@ erDiagram
     subject_attempt ||--o{ evaluation_instance : has
     evaluation_instance ||--o{ evaluation_retake : has
     subject_attempt ||--o{ final_exam : has
+    user ||--o{ refresh_token : has
+    user ||--o{ audit_log : acts
 
     university {
         uuid id PK
@@ -65,6 +67,9 @@ erDiagram
         text google_sub UK
         boolean is_public
         boolean is_email_verified
+        boolean is_admin
+        timestamptz accepted_privacy_at
+        timestamptz deleted_at
     }
     user_study_plan_enrollment {
         uuid id PK
@@ -79,6 +84,7 @@ erDiagram
         int final_grade
         int term_year
         enum term
+        timestamptz annulled_at
     }
     evaluation_instance {
         uuid id PK
@@ -104,6 +110,23 @@ erDiagram
         date exam_date
         boolean is_external_exam
     }
+    refresh_token {
+        uuid id PK
+        uuid user_id FK
+        text token_hash
+        uuid family_id
+        timestamptz expires_at
+        timestamptz revoked_at
+    }
+    audit_log {
+        bigint id PK
+        uuid actor_id FK
+        text action
+        text entity
+        uuid entity_id
+        jsonb diff_json
+        timestamptz created_at
+    }
 ```
 
 ## Restricciones
@@ -114,7 +137,7 @@ erDiagram
 | `career` | `(university_id, name)` es unico |
 | `study_plan` | `(career_id, year)` es unico |
 | `subject` | `(study_plan_id, name)` es unico |
-| `subject_correlative` | `(subject_id, correlative_subject_id)` es unico |
+| `subject_correlative` | `(subject_id, correlative_subject_id)` es unico; `subject_id != correlative_subject_id`; ambas subjects del mismo `study_plan` (validado en app; sin ciclos, validado en app con BFS) |
 | `user` | `username` es unico |
 | `user` | `email` es unico |
 | `user` | `google_sub` es unico cuando no es `NULL` |
@@ -124,22 +147,26 @@ erDiagram
 
 * `user.password_hash`
 * `user.google_sub`
+* `user.accepted_privacy_at`
+* `user.deleted_at`
 * `subject_attempt.final_grade`
 * `subject_attempt.term_year`
 * `subject_attempt.term`
+* `subject_attempt.annulled_at`
 * `evaluation_instance.custom_type_name`
 * `evaluation_instance.grade`
 * `evaluation_instance.exam_date`
 * `evaluation_retake.exam_date`
 * `final_exam.grade`
 * `final_exam.exam_date`
+* `refresh_token.revoked_at`
 
-`subject_attempt.study_plan_enrollment_id` es NOT NULL. No existe cursada sin enrollment (YAGNI para `active` boolean). El `user_id` se deriva via `user_study_plan_enrollment.user_id` en read models.
+`subject_attempt.study_plan_enrollment_id` es NOT NULL. No existe cursada sin enrollment. El `user_id` se deriva via `user_study_plan_enrollment.user_id` en read models.
 
 ## Detalle por tabla
 
 ### `user`
-`id UUIDv7 PK`, `username UQ`, `email UQ`, `display_name`, `password_hash nullable` (nullable por OAuth), `google_sub UQ nullable`, `is_public bool default false`, `is_email_verified bool`, `accepted_privacy_at nullable`, `created_by/at`, `updated_by/at`.
+`id UUIDv7 PK`, `username UQ`, `email UQ`, `display_name`, `password_hash nullable` (nullable por OAuth), `google_sub UQ nullable`, `is_public bool default false`, `is_email_verified bool default false`, `is_admin bool default false`, `accepted_privacy_at nullable` (consentimiento Ley 25.326), `deleted_at nullable` (soft delete; `NULL` = activa), `created_by/at`, `updated_by/at`. Índice `B-Tree(deleted_at)` para el job de purga.
 
 ### `university`
 `id UUIDv7 PK`, `name UQ`.
@@ -151,38 +178,41 @@ erDiagram
 `id UUIDv7 PK`, `career_id FK`, `year int`, `required_electives int default 0`, `UQ(career_id, year)`. Indice `B-Tree(year)`.
 
 ### `subject`
-`id UUIDv7 PK`, `study_plan_id FK`, `name`, `is_elective bool`, `requires_final bool`, `UQ(study_plan_id, name)`, `B-Tree(name)` para `ILIKE nombre%`.
+`id UUIDv7 PK`, `study_plan_id FK`, `name`, `is_elective bool default false`, `requires_final bool default true`, `UQ(study_plan_id, name)`, `B-Tree(name)` para `ILIKE nombre%`.
 
 ### `subject_correlative`
 `id BIGINT PK`, `subject_id FK` hacia `subject`, `correlative_subject_id FK` hacia `subject`, `type ENUM('PREVIOUS','CONCURRENT')`, `UQ(subject_id, correlative_subject_id)`. Solo `AND` (ver [specification.md](./specification.md) sección 5.2).
 
 ### `user_study_plan_enrollment`
-`id UUIDv7 PK`, `user_id FK`, `study_plan_id FK`, `UQ(user_id, study_plan_id)`.
+`id UUIDv7 PK`, `user_id FK`, `study_plan_id FK`, `UQ(user_id, study_plan_id)`. Es la raíz de lock: toda mutación de cursada hace `SELECT FOR UPDATE` sobre esta fila.
 
 ### `subject_attempt`
-Historico N intentos por enrollment y subject. `id UUIDv7 PK`, `study_plan_enrollment_id FK NOT NULL`, `subject_id FK`, `status ENUM('NOT_AVAILABLE','AVAILABLE','IN_PROGRESS','PENDING_FINAL','PASSED')`, `final_grade 1-10 nullable`, `term_year nullable`, `term ENUM('FIRST','SECOND') nullable`, `created_by/at`, `updated_by/at`. Indice `B-Tree(study_plan_enrollment_id, subject_id)`, `B-Tree(status)`. El `user_id` se obtiene via JOIN a `user_study_plan_enrollment` en read models.
+Histórico N intentos por enrollment y subject. `id UUIDv7 PK`, `study_plan_enrollment_id FK NOT NULL`, `subject_id FK`, `status ENUM('IN_PROGRESS','PENDING_FINAL','PASSED')` (solo estos tres se persisten; `AVAILABLE` y `NOT_AVAILABLE` son vista computada, ver [specification.md](./specification.md) sección 5.1), `final_grade 1-10 nullable`, `term_year nullable`, `term ENUM('FIRST','SECOND') nullable`, `annulled_at nullable` (intento anulado por promoción posterior; se ignora en agregado y promedios), `created_by/at`, `updated_by/at`. Indices `B-Tree(study_plan_enrollment_id, subject_id)`, `B-Tree(status)`, `B-Tree(annulled_at)`. El `user_id` se obtiene via JOIN a `user_study_plan_enrollment` en read models. Regla de unicidad parcial en app (no constraint DB): un solo attempt no anulado en `IN_PROGRESS` o `PENDING_FINAL` por `(study_plan_enrollment_id, subject_id)`; la creación valida el estado visible y devuelve `409` si no es `AVAILABLE` o `PENDING_FINAL`.
 
 ### `evaluation_instance`
-`id UUIDv7 PK`, `subject_attempt_id FK`, `type ENUM('PARTIAL','PRACTICAL_WORK','DELIVERABLE','OTHER')`, `custom_type_name nullable` (si `OTHER`), `grade 1-10 nullable`, `exam_date nullable`, `min_regularize default 4`, `min_promote default 7`, `sort_order`.
+`id UUIDv7 PK`, `subject_attempt_id FK`, `type ENUM('PARTIAL','PRACTICAL_WORK','DELIVERABLE','OTHER')`, `custom_type_name nullable` (obligatorio si `OTHER`), `grade 1-10 nullable`, `exam_date nullable`, `min_regularize default 4`, `min_promote default 7` (por attempt), `sort_order`.
 
 ### `evaluation_retake`
-`id UUIDv7 PK`, `evaluation_instance_id FK`, `grade 1-10`, `exam_date nullable`, `created_at`.
+`id UUIDv7 PK`, `evaluation_instance_id FK`, `grade 1-10`, `exam_date nullable`, `created_at`. La nota efectiva de la instancia es `MAX(instance.grade, retakes.grade)`.
 
 ### `final_exam`
-`id UUIDv7 PK`, `subject_attempt_id FK`, `grade nullable`, `exam_date nullable`, `is_external_exam bool default false` (rendir en condición de libre, habilita `AVAILABLE->PASSED` y `PENDING_FINAL->PASSED`).
+`id UUIDv7 PK`, `subject_attempt_id FK`, `grade nullable`, `exam_date nullable`, `is_external_exam bool default false` (rendir libre; habilita `AVAILABLE -> PASSED`). Regla en app: bloqueado (`409`) si existe sibling `IN_PROGRESS` no anulado para el mismo `(enrollment, subject)`.
 
 ### `refresh_token` (ver [auth.md](./auth.md))
-`id UUIDv7 PK`, `user_id FK`, `token_hash`, `expires_at`, `revoked_at nullable`.
+`id UUIDv7 PK`, `user_id FK`, `token_hash` (nunca el token en claro), `family_id UUID` (familia de rotación para reuse-detection), `expires_at`, `revoked_at nullable`.
+
+### `audit_log`
+`id BIGINT PK`, `actor_id FK -> user`, `action` (`CREATE|UPDATE|DELETE`), `entity` (`university|career|study_plan|subject|subject_correlative`), `entity_id UUID`, `diff_json JSONB`, `created_at`. Se escribe en la misma transacción que el cambio de catálogo. Índice `B-Tree(entity, entity_id)`.
 
 ## Read models
 
-Projections DTO directo desde DB (`select id, name, status` y similares), no entidades completas. Ejemplo: `AvailableSubjectReadModel` cruza `subject` y `subject_correlative` y `subject_attempt` via query nativa o Prisma `findMany select`. Para `subject_attempt` el `user_id` se proyecta con JOIN a `user_study_plan_enrollment`.
+Projections DTO directo desde DB (`select id, name, status` y similares), no entidades completas. Ejemplo: `AvailableSubjectReadModel` cruza `subject` y `subject_correlative` y `subject_attempt` (filtrando `annulled_at IS NULL`) via query nativa o Prisma `findMany select`. Para `subject_attempt` el `user_id` se proyecta con JOIN a `user_study_plan_enrollment`.
 
 ## Row Level Security (RLS) — hardening temprano
 
-RLS como defensa en profundidad, no reemplaza filtros en app.
+RLS como defensa en profundidad, no reemplaza filtros en app (ownership `enrollment.user_id = req.user.id` + guard `AdminOnly`).
 
-- Tablas con RLS: `user_study_plan_enrollment`, `subject_attempt`, `evaluation_instance`, `evaluation_retake`, `final_exam`, `refresh_token`. catálogo (`university`, `career`, `study_plan`, `subject`, `subject_correlative`) es público (RLS no aplica).
+- Tablas con RLS: `user_study_plan_enrollment`, `subject_attempt`, `evaluation_instance`, `evaluation_retake`, `final_exam`, `refresh_token`. Catálogo (`university`, `career`, `study_plan`, `subject`, `subject_correlative`) es público (RLS no aplica).
 - Política: `USING (user_id = current_setting('app.user_id', true)::uuid)` o via `study_plan_enrollment.user_id` con JOIN. `FOR ALL` con `WITH CHECK` igual a `USING`.
 - Implementacion con Prisma (single role): middleware Nest por request autenticado ejecuta `SET LOCAL app.user_id = '<uuid>'` antes de cualquier query en la transacción. Requests no autenticados no setean (ven solo catálogo público). `FORCE RLS` en tablas protegidas.
 - Migración: `ALTER TABLE ... ENABLE ROW LEVEL SECURITY; CREATE POLICY ...; ALTER TABLE ... FORCE ROW LEVEL SECURITY;`. Tests con 2 usuarios: `SET LOCAL` como A no debe leer rows de B.

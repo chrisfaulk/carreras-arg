@@ -4,25 +4,27 @@
 
 - Docs y respuestas: espanol. Código, tablas y columnas: ingles.
 - Vars: `camelCase`. Constantes: `SCREAMING_SNAKE`. Tablas y columnas: `snake_case` en singular.
-- Sin comentarios salvo `ponytail:` para atajos deliberados con techo y upgrade path (ej. `// ponytail: Bucket4j en memoria, Redis si hay mas de una instancia`).
+- Sin comentarios salvo `ponytail:` para atajos deliberados con techo y upgrade path (ej. `// ponytail: throttler en memoria, Redis si hay mas de una instancia`).
 
 ## Formato y commits
 
 - **ESLint y Prettier** (TS) y `Prisma format` en pre commit. `Husky` y `lint-staged`.
 - Commits: `type(module): explanation`. Ejemplos: `feat(tracking): compute available subjects`, `fix(auth): rotate refresh`, `chore(db): add index`.
-- Un checkpoint es un commit significativo (ver [roadmap.md](./roadmap.md)). PRs chicos.
+- Un checkpoint es un commit significativo (ver [roadmap.md](./roadmap.md)). PRs chicos, un checkpoint por PR.
 
 ## Arquitectura
 
 - DDD por modulos Nest (`domain`, `application`, `infra`, `interfaces`), `api/` público vs `internal/` privado.
-- Eventos y read models para cross module; nunca JOIN cross module. Ver [architecture.md](./architecture.md).
+- Read models para cross module; nunca JOIN cross module. Ver [architecture.md](./architecture.md).
+- API solo `PUT` para actualizar o transicionar (`POST` solo crear, `PUT` para mutar, `DELETE` para borrar). Prohibido `PATCH` en backend y frontend; el CI lo verifica.
 - Sin `useEffect` ni `useLayoutEffect`. RSC y Server Actions. Ver [ui-ux.md](./ui-ux.md).
 
 ## Datos y performance
 
 - **Projections DTO directo desde DB** (`select id, name` y similares), no entidades completas. Favorece `Prisma select` o query nativa.
-- Paginación, filtros y búsqueda siempre (`limit` y `offset` y `ILIKE nombre%` con `B-Tree`). Ver [database.md](./database.md).
-- Todo secreto en env vars. Nunca exponer keys, URLs o IPs privadas. Validación en trust boundaries.
+- Paginación, filtros y búsqueda siempre (`limit` y `offset` y `ILIKE nombre%` con `B-Tree`). Respuesta `{ data, meta: { page, limit, total } }`, `limit` default 20 max 50. Ver [database.md](./database.md).
+- Toda mutación de cursada o evaluación en transacción con `SELECT FOR UPDATE` sobre `user_study_plan_enrollment`. Ver [architecture.md](./architecture.md).
+- Todo secreto en env vars. Nunca exponer keys, URLs o IPs privadas. Validación con zod en trust boundaries.
 
 ## Privacidad, legal y contenido
 
@@ -37,7 +39,7 @@
 
 ## Testing
 
-- Solo lógica crítica: `tracking` (estados, correlativas, cascada), `evaluation` (promedios x2).
+- Solo lógica crítica: `tracking` (agregado visible, disponibilidad computada, máquina, cierre con promedio/redondeo/anulación), `evaluation` (mejor-nota, bloqueo de final), promedios x2 y avance.
 - Tests caja negra: `given input hacia expect output`, sin acoplar a implementación. Se debe poder reescribir el dominio sin tocar tests, y que los mismos sirvan para verificar que la nueva implementación es correcta.
 - Sin tests para one liners triviales.
 
