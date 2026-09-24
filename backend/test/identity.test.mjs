@@ -17,7 +17,7 @@ process.env.ADMIN_SEED_EMAIL ??= "admin@example.com";
 
 const { signToken, checkToken } = await import("../dist/shared/tokens.js");
 
-const { registerSchema } = await import("../dist/modules/identity/identity.service.js");
+const { registerSchema, resetSchema } = await import("../dist/modules/identity/identity.service.js");
 
 describe("tokens (verify stateless)", () => {
   it("verify roundtrip", () => {
@@ -58,5 +58,11 @@ describe("register schema", () => {
         acceptedPrivacy: true,
       }),
     );
+  });
+});
+
+describe("reset schema", () => {
+  it("rejects short password", () => {
+    assert.throws(() => resetSchema.parse({ token: "t", password: "123" }));
   });
 });

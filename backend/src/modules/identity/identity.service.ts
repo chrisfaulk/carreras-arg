@@ -5,7 +5,7 @@ import type { CookieOptions } from "express";
 import { PrismaService } from "../../prisma.service";
 import { ERR, IdResult, OkResult } from "../../shared/api-error";
 import { sendMail } from "../../shared/mail";
-import { checkToken, signToken } from "../../shared/tokens";
+import { checkToken, signToken, tokenIat } from "../../shared/tokens";
 import { comparePassword, hashOpaque, hashPassword, opaqueToken } from "./guards";
 
 export const registerSchema = z.object({
@@ -22,6 +22,17 @@ export const registerSchema = z.object({
 
 export const loginSchema = z.object({ email: z.string().email(), password: z.string().min(1) });
 
+export const forgotSchema = z.object({ email: z.string().email() });
+
+export const resetSchema = z.object({ token: z.string().min(1), password: z.string().min(8) });
+
+export const setPasswordSchema = z.object({ password: z.string().min(8) });
+
+export const updateMeSchema = z.object({
+  displayName: z.string().min(1).max(80).optional(),
+  isPublic: z.boolean().optional(),
+});
+
 export type RegisterInput = z.input<typeof registerSchema>;
 
 export type RegisterData = z.infer<typeof registerSchema>;
@@ -29,6 +40,22 @@ export type RegisterData = z.infer<typeof registerSchema>;
 export type LoginInput = z.input<typeof loginSchema>;
 
 export type LoginData = z.infer<typeof loginSchema>;
+
+export type ForgotInput = z.input<typeof forgotSchema>;
+
+export type ForgotData = z.infer<typeof forgotSchema>;
+
+export type ResetInput = z.input<typeof resetSchema>;
+
+export type ResetData = z.infer<typeof resetSchema>;
+
+export type SetPasswordInput = z.input<typeof setPasswordSchema>;
+
+export type SetPasswordData = z.infer<typeof setPasswordSchema>;
+
+export type UpdateMeInput = z.input<typeof updateMeSchema>;
+
+export type UpdateMeData = z.infer<typeof updateMeSchema>;
 
 export interface Session {
   access: string;
@@ -192,6 +219,63 @@ export class IdentityService {
     }
 
     return { ok: true };
+  }
+
+  async forgot(data: ForgotData): Promise<OkResult> {
+    const user = await this.prisma.user.findUnique({ where: { email: data.email }, select: { id: true } });
+
+    if (user) {
+      const token = signToken(user.id, "reset");
+
+      await sendMail(data.email, "Restablecé tu contraseña", `Usá este link (1h): /api/auth/reset?token=${token}`);
+    }
+
+    return { ok: true };
+  }
+
+  async reset(data: ResetData): Promise<OkResult> {
+    let sub: string;
+
+    try {
+      sub = checkToken(data.token, "reset");
+    } catch {
+      ERR.bad("Token inválido o vencido");
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: sub! } });
+
+    if (!user) ERR.notFound();
+
+    if (user!.updatedAt.getTime() / 1000 > tokenIat(data.token)) ERR.bad("Token inválido o vencido");
+
+    await this.prisma.user.update({
+      where: { id: sub! },
+      data: { passwordHash: await hashPassword(data.password) },
+    });
+
+    await this.prisma.refreshToken.updateMany({
+      where: { userId: sub!, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    return { ok: true };
+  }
+
+  async setPassword(userId: string, data: SetPasswordData): Promise<OkResult> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: await hashPassword(data.password) },
+    });
+
+    return { ok: true };
+  }
+
+  async updateMe(userId: string, data: UpdateMeData) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { displayName: data.displayName, isPublic: data.isPublic },
+      select: { id: true, username: true, email: true, displayName: true, isPublic: true },
+    });
   }
 
   googleUrl(): GoogleAuthUrl {

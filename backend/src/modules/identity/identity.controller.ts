@@ -1,14 +1,22 @@
-import { Body, Controller, Get, Post, Query, Req, Res } from "@nestjs/common";
+import { Body, Controller, Get, Post, Put, Query, Req, Res } from "@nestjs/common";
 import type { Request, Response } from "express";
 import { Public } from "./guards";
 import {
   ACCESS_DAYS,
+  ForgotInput,
+  forgotSchema,
   IdentityService,
   LoginInput,
   loginSchema,
   REFRESH_DAYS,
   RegisterInput,
   registerSchema,
+  ResetInput,
+  resetSchema,
+  SetPasswordInput,
+  setPasswordSchema,
+  UpdateMeInput,
+  updateMeSchema,
   cookieOpts,
 } from "./identity.service";
 
@@ -71,6 +79,28 @@ export class IdentityController {
     clearSession(res);
 
     return { ok: true };
+  }
+
+  @Public()
+  @Post("auth/forgot")
+  forgot(@Body() body: ForgotInput) {
+    return this.identity.forgot(forgotSchema.parse(body));
+  }
+
+  @Public()
+  @Post("auth/reset")
+  reset(@Body() body: ResetInput) {
+    return this.identity.reset(resetSchema.parse(body));
+  }
+
+  @Post("auth/password")
+  setPassword(@Req() req: Request, @Body() body: SetPasswordInput) {
+    return this.identity.setPassword(req.user.id, setPasswordSchema.parse(body));
+  }
+
+  @Put("users/me")
+  updateMe(@Req() req: Request, @Body() body: UpdateMeInput) {
+    return this.identity.updateMe(req.user.id, updateMeSchema.parse(body));
   }
 
   @Public()
