@@ -3,6 +3,7 @@ import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { PrismaService } from "./prisma.service";
 import { CatalogModule } from "./modules/catalog/catalog.module";
+import { EnrollmentModule } from "./modules/enrollment/enrollment.module";
 import { IdentityModule } from "./modules/identity/identity.module";
 import { HealthController } from "./health.controller";
 
@@ -12,6 +13,7 @@ import { HealthController } from "./health.controller";
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 60 }]),
     IdentityModule,
     CatalogModule,
+    EnrollmentModule,
   ],
   controllers: [HealthController],
   providers: [PrismaService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
