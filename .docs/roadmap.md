@@ -18,15 +18,15 @@
 
 | # | Objetivo | Done | Commit |
 |---|----------|------|--------|
-| 1.1 | `POST /auth/register` + `GET /auth/verify?token` (Resend, token 24h, `accepted_privacy_at`, checkbox no pre-tildado) | Registro y verify e2e | `feat(identity): register+verify` |
-| 1.2 | `POST /auth/login/refresh/logout` (cookies httpOnly `SameSite=Strict` + check `Origin`, `access 15m`/`refresh 7d`, reuse-detection por `family_id`) + seed admin `ADMIN_SEED_EMAIL` | Login y reuse-detect testeados | `feat(identity): sessions+admin-seed` |
-| 1.3 | `POST /auth/forgot/reset` (1h) + `POST /auth/password` (OAuth agrega password) + `PUT /users/me` (`display_name`, `is_public`) | Reset e2e | `feat(identity): password reset+profile` |
-| 1.4 | Throttler en memoria (`login 5/min` por IP+email, `forgot 3/h`) + geo AR con `ALLOWLIST_IPS` | Ban no AR ok | `feat(identity): throttling+geo` |
-| 1.5 | CRUD admin `university` (`AdminOnly` + `audit_log` en misma txn, `DELETE 409` si tiene careers) + `GET` público paginado `?q=&page&limit` | Admin e2e | `feat(catalog): university` |
-| 1.6 | CRUD admin `career` (UQ `university_id+name`) | Admin e2e | `feat(catalog): career` |
-| 1.7 | CRUD admin `study_plan` (`year`, `required_electives`) + `GET ?careerId=` | Admin e2e | `feat(catalog): study-plan` |
-| 1.8 | CRUD admin `subject` (`is_elective`, `requires_final`, `ILIKE nombre%` + `B-Tree`) + `DELETE 409` si tiene attempts | Admin e2e | `feat(catalog): subject` |
-| 1.9 | Correlativas admin (`PREVIOUS|CONCURRENT`, mismo plan, anti-auto-ref y anti-ciclo BFS) + tests caja negra | Tests verdes | `feat(catalog): correlatives` |
+| 1.1 | `POST /auth/register` + `GET /auth/verify?token` (Resend, token 24h, `accepted_privacy_at`, checkbox no pre-tildado) | Registro y verify e2e ✅ | `feat(identity): register+verify` |
+| 1.2 | `POST /auth/login/refresh/logout` (cookies httpOnly `SameSite=Strict` + check `Origin`, `access 15m`/`refresh 7d`, reuse-detection por `family_id`) + seed admin `ADMIN_SEED_EMAIL` | Login y reuse-detect testeados ✅ | `feat(identity): sessions+admin-seed` |
+| 1.3 | `POST /auth/forgot/reset` (1h) + `POST /auth/password` (OAuth agrega password) + `PUT /users/me` (`display_name`, `is_public`) | Reset e2e ✅ | `feat(identity): password reset+profile` |
+| 1.4 | Throttler en memoria (`login 5/min` por IP+email, `forgot 3/h`) + geo AR con `ALLOWLIST_IPS` | Ban no AR ok ✅ | `feat(identity): throttling+geo` |
+| 1.5 | CRUD admin `university` (`AdminOnly` + `audit_log` en misma txn, `DELETE 409` si tiene careers) + `GET` público paginado `?q=&page&limit` | Admin e2e ✅ | `feat(catalog): university` |
+| 1.6 | CRUD admin `career` (UQ `university_id+name`) | Admin e2e ✅ | `feat(catalog): career` |
+| 1.7 | CRUD admin `study_plan` (`year`, `required_electives`) + `GET ?careerId=` | Admin e2e ✅ | `feat(catalog): study-plan` |
+| 1.8 | CRUD admin `subject` (`is_elective`, `requires_final`, `ILIKE nombre%` + `B-Tree`) + `DELETE 409` si tiene attempts | Admin e2e ✅ | `feat(catalog): subject` |
+| 1.9 | Correlativas admin (`PREVIOUS|CONCURRENT`, mismo plan, anti-auto-ref y anti-ciclo BFS) + tests caja negra | Tests verdes ✅ | `feat(catalog): correlatives` |
 
 ## Fase 2: Cursada, evaluación y promedios
 
