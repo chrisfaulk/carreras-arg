@@ -20,6 +20,18 @@ export const planUpdateSchema = z.object({
   requiredElectives: z.number().int().min(0).optional(),
 });
 
+export const subjectSchema = universitySchema.extend({
+  studyPlanId: z.string().uuid(),
+  isElective: z.boolean().default(false),
+  requiresFinal: z.boolean().default(true),
+});
+
+export const subjectUpdateSchema = z.object({
+  name: z.string().min(1).max(120).optional(),
+  isElective: z.boolean().optional(),
+  requiresFinal: z.boolean().optional(),
+});
+
 export type UniversityInput = z.input<typeof universitySchema>;
 
 export type UniversityData = z.infer<typeof universitySchema>;
@@ -35,6 +47,14 @@ export type PlanData = z.infer<typeof planSchema>;
 export type PlanUpdateInput = z.input<typeof planUpdateSchema>;
 
 export type PlanUpdateData = z.infer<typeof planUpdateSchema>;
+
+export type SubjectInput = z.input<typeof subjectSchema>;
+
+export type SubjectData = z.infer<typeof subjectSchema>;
+
+export type SubjectUpdateInput = z.input<typeof subjectUpdateSchema>;
+
+export type SubjectUpdateData = z.infer<typeof subjectUpdateSchema>;
 
 type JsonField = string | number | boolean | undefined;
 
@@ -288,6 +308,87 @@ export class CatalogService {
     if (kids > 0) ERR.conflict("DELETE_BLOCKED_BY_CHILDREN", "Tiene inscriptos");
 
     await this.tx(actorId, "DELETE", "study_plan", id, {}, (t) => t.studyPlan.delete({ where: { id } }));
+
+    return { ok: true };
+  }
+
+  async listSubjects(query: ListQuery) {
+    const { page, limit, skip } = pagination(query);
+    const where: Prisma.SubjectWhereInput = {};
+
+    if (query.studyPlanId) where.studyPlanId = query.studyPlanId;
+
+    if (query.q) where.name = { startsWith: query.q, mode: "insensitive" };
+
+    return this.prisma.$transaction(async (t) => {
+      const [data, total] = await Promise.all([
+        t.subject.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { name: "asc" },
+          select: { id: true, studyPlanId: true, name: true, isElective: true, requiresFinal: true },
+        }),
+        t.subject.count({ where }),
+      ]);
+
+      return paged(data, total, page, limit);
+    });
+  }
+
+  async createSubject(actorId: string, data: SubjectData) {
+    try {
+      const row = await this.prisma.subject.create({
+        data: {
+          name: data.name,
+          studyPlanId: data.studyPlanId,
+          isElective: data.isElective,
+          requiresFinal: data.requiresFinal,
+          createdBy: actorId,
+        },
+        select: { id: true, studyPlanId: true, name: true, isElective: true, requiresFinal: true },
+      });
+
+      await this.prisma.auditLog.create({
+        data: {
+          actorId,
+          action: "CREATE",
+          entity: "subject",
+          entityId: row.id,
+          diffJson: { name: data.name, studyPlanId: data.studyPlanId },
+        },
+      });
+
+      return row;
+    } catch (error) {
+      if (isDuplicate(error)) ERR.conflict("DUPLICATE", "Materia duplicada en ese plan");
+
+      throw error;
+    }
+  }
+
+  updateSubject(actorId: string, id: string, data: SubjectUpdateData) {
+    const diff = prune([
+      ["name", data.name],
+      ["isElective", data.isElective],
+      ["requiresFinal", data.requiresFinal],
+    ]);
+
+    return this.tx(actorId, "UPDATE", "subject", id, diff, (t) =>
+      t.subject.update({ where: { id }, data: { ...data, updatedBy: actorId } }),
+    );
+  }
+
+  async deleteSubject(actorId: string, id: string): Promise<OkResult> {
+    const kids = await this.prisma.subjectAttempt.count({ where: { subjectId: id } });
+
+    if (kids > 0) ERR.conflict("DELETE_BLOCKED_BY_CHILDREN", "Tiene cursadas asociadas");
+
+    await this.tx(actorId, "DELETE", "subject", id, {}, async (t) => {
+      await t.subjectCorrelative.deleteMany({ where: { OR: [{ subjectId: id }, { correlativeSubjectId: id }] } });
+
+      return t.subject.delete({ where: { id } });
+    });
 
     return { ok: true };
   }

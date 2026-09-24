@@ -10,6 +10,10 @@ import {
   planSchema,
   PlanUpdateInput,
   planUpdateSchema,
+  SubjectInput,
+  subjectSchema,
+  SubjectUpdateInput,
+  subjectUpdateSchema,
   UniversityInput,
   universitySchema,
 } from "./catalog.service";
@@ -88,5 +92,29 @@ export class CatalogController {
   @Delete("study-plans/:id")
   deletePlan(@Req() req: Request, @Param("id") id: string) {
     return this.catalog.deletePlan(req.user.id, id);
+  }
+
+  @Public()
+  @Get("subjects")
+  subjects(@Query() query: RawListQuery) {
+    return this.catalog.listSubjects(listQuerySchema.parse(query));
+  }
+
+  @UseGuards(AdminGuard)
+  @Post("subjects")
+  createSubject(@Req() req: Request, @Body() body: SubjectInput) {
+    return this.catalog.createSubject(req.user.id, subjectSchema.parse(body));
+  }
+
+  @UseGuards(AdminGuard)
+  @Put("subjects/:id")
+  updateSubject(@Req() req: Request, @Param("id") id: string, @Body() body: SubjectUpdateInput) {
+    return this.catalog.updateSubject(req.user.id, id, subjectUpdateSchema.parse(body));
+  }
+
+  @UseGuards(AdminGuard)
+  @Delete("subjects/:id")
+  deleteSubject(@Req() req: Request, @Param("id") id: string) {
+    return this.catalog.deleteSubject(req.user.id, id);
   }
 }
