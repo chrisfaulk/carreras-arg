@@ -37,4 +37,9 @@ export class TrackingController {
   cursables(@Req() req: Request, @Param("id") id: string, @Query() query: RawListQuery) {
     return this.tracking.cursables(req.user.id, id, listQuerySchema.parse(query));
   }
+
+  @Get("enrollments/:id/averages")
+  averages(@Req() req: Request, @Param("id") id: string) {
+    return this.tracking.averages(req.user.id, id);
+  }
 }

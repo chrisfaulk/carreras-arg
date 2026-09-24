@@ -7,6 +7,7 @@ import { lockedEnrollment } from "../../shared/read-models";
 import { checkTransition } from "./attempt-machine";
 import { closeAttempt } from "./attempt-closer";
 import { insufficientCorrelatives, visibleStatus, CorrelativeRow, VisibleStatus } from "./availability-reader";
+import { calculateAverages } from "./average-calculator";
 import { effectiveGrade } from "../evaluation/effective-grade";
 import { ListQuery, paged } from "../../shared/pagination";
 
@@ -72,6 +73,46 @@ export class TrackingService {
 
   cursables(userId: string, enrollmentId: string, query: ListQuery) {
     return this.prisma.withUserContext(userId, (tx) => this.cursablesTx(tx, userId, enrollmentId, query));
+  }
+
+  averages(userId: string, enrollmentId: string) {
+    return this.prisma.withUserContext(userId, async (tx) => {
+      const enrollment = await tx.userStudyPlanEnrollment.findUnique({
+        where: { id: enrollmentId },
+        select: { id: true, userId: true, studyPlan: { select: { id: true, requiredElectives: true } } },
+      });
+
+      if (!enrollment || enrollment.userId !== userId) ERR.notFound();
+
+      const [subjects, attempts] = await Promise.all([
+        tx.subject.findMany({
+          where: { studyPlanId: enrollment!.studyPlan.id },
+          select: { id: true, isElective: true },
+        }),
+        tx.subjectAttempt.findMany({
+          where: { studyPlanEnrollmentId: enrollmentId },
+          select: {
+            subjectId: true,
+            status: true,
+            finalGrade: true,
+            annulledAt: true,
+            finalExams: { select: { grade: true } },
+          },
+        }),
+      ]);
+
+      return calculateAverages({
+        subjects,
+        attempts: attempts.map((attempt) => ({
+          subjectId: attempt.subjectId,
+          status: attempt.status,
+          finalGrade: attempt.finalGrade,
+          annulled: attempt.annulledAt !== null,
+          finals: attempt.finalExams.map((final) => final.grade),
+        })),
+        requiredElectives: enrollment!.studyPlan.requiredElectives,
+      });
+    });
   }
 
   private async planSubjectsTx(tx: Prisma.TransactionClient, userId: string, planId: string, query: ListQuery) {

@@ -21,6 +21,8 @@ const { visibleStatus, insufficientCorrelatives } = await import("../dist/module
 
 const { closeAttempt } = await import("../dist/modules/tracking/attempt-closer.js");
 
+const { calculateAverages } = await import("../dist/modules/tracking/average-calculator.js");
+
 describe("attempt machine", () => {
   it("rejects manual move to AVAILABLE", () => {
     assert.equal(
@@ -309,6 +311,91 @@ describe("attempt closer", () => {
       status: "PENDING_FINAL",
       finalGrade: 8,
       average: 8,
+    });
+  });
+});
+
+describe("average calculator", () => {
+  const subjects = [
+    { id: "s1", isElective: false },
+    { id: "s2", isElective: false },
+    { id: "e1", isElective: true },
+  ];
+
+  it("average uses only passed grades, progress counts plan", () => {
+    assert.deepEqual(
+      calculateAverages({
+        subjects,
+        attempts: [{ subjectId: "s1", status: "PASSED", finalGrade: 8, annulled: false, finals: [] }],
+        requiredElectives: 1,
+      }),
+      { average: 8, averageWithFailures: 8, progress: 1 / 3 },
+    );
+  });
+
+  it("approved final overrides course grade", () => {
+    assert.deepEqual(
+      calculateAverages({
+        subjects,
+        attempts: [{ subjectId: "s1", status: "PASSED", finalGrade: 7, annulled: false, finals: [6] }],
+        requiredElectives: 0,
+      }),
+      { average: 6, averageWithFailures: 6, progress: 0.5 },
+    );
+  });
+
+  it("failures drag average_with_failures only", () => {
+    assert.deepEqual(
+      calculateAverages({
+        subjects,
+        attempts: [
+          { subjectId: "s1", status: "PASSED", finalGrade: 8, annulled: false, finals: [] },
+          { subjectId: "s2", status: "FAILED", finalGrade: 3, annulled: false, finals: [] },
+          { subjectId: "s2", status: "PENDING_FINAL", finalGrade: null, annulled: false, finals: [2] },
+        ],
+        requiredElectives: 0,
+      }),
+      { average: 8, averageWithFailures: (8 + 3 + 2) / 3, progress: 0.5 },
+    );
+  });
+
+  it("annulled attempts are ignored everywhere", () => {
+    assert.deepEqual(
+      calculateAverages({
+        subjects,
+        attempts: [
+          { subjectId: "s1", status: "PENDING_FINAL", finalGrade: null, annulled: true, finals: [] },
+          { subjectId: "s1", status: "PASSED", finalGrade: 9, annulled: false, finals: [] },
+        ],
+        requiredElectives: 0,
+      }),
+      { average: 9, averageWithFailures: 9, progress: 0.5 },
+    );
+  });
+
+  it("electives cap at required_electives for progress", () => {
+    const many = [...subjects, { id: "e2", isElective: true }];
+
+    assert.deepEqual(
+      calculateAverages({
+        subjects: many,
+        attempts: [
+          { subjectId: "s1", status: "PASSED", finalGrade: 7, annulled: false, finals: [] },
+          { subjectId: "s2", status: "PASSED", finalGrade: 7, annulled: false, finals: [] },
+          { subjectId: "e1", status: "PASSED", finalGrade: 9, annulled: false, finals: [] },
+          { subjectId: "e2", status: "PASSED", finalGrade: 9, annulled: false, finals: [] },
+        ],
+        requiredElectives: 1,
+      }),
+      { average: 8, averageWithFailures: 8, progress: 1 },
+    );
+  });
+
+  it("empty enrollment has null averages and zero progress", () => {
+    assert.deepEqual(calculateAverages({ subjects, attempts: [], requiredElectives: 1 }), {
+      average: null,
+      averageWithFailures: null,
+      progress: 0,
     });
   });
 });
