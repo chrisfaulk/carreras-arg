@@ -5,6 +5,7 @@ import { PrismaService } from "../../prisma.service";
 import { ERR } from "../../shared/api-error";
 import { lockedEnrollment } from "../../shared/read-models";
 import { checkTransition } from "./attempt-machine";
+import { closeAttempt } from "./attempt-closer";
 import { visibleStatus, VisibleStatus } from "./availability-reader";
 
 export type { VisibleStatus } from "./availability-reader";
@@ -57,6 +58,73 @@ export class TrackingService {
 
   updateAttempt(userId: string, attemptId: string, data: UpdateAttemptData) {
     return this.prisma.withUserContext(userId, (tx) => this.updateAttemptTx(tx, userId, attemptId, data));
+  }
+
+  closeAttempt(userId: string, attemptId: string) {
+    return this.prisma.withUserContext(userId, (tx) => this.closeAttemptTx(tx, userId, attemptId));
+  }
+
+  private async closeAttemptTx(tx: Prisma.TransactionClient, userId: string, attemptId: string) {
+    const attempt = await tx.subjectAttempt.findUnique({
+      where: { id: attemptId },
+      select: {
+        ...attemptSelect,
+        annulledAt: true,
+        enrollment: { select: { id: true, userId: true } },
+        subject: { select: { id: true, requiresFinal: true } },
+      },
+    });
+
+    if (!attempt || attempt.annulledAt || attempt.enrollment.userId !== userId) ERR.notFound();
+
+    await lockedEnrollment(tx, attempt!.enrollment.id, userId);
+
+    if (attempt!.status !== "IN_PROGRESS") ERR.unprocessable("INVALID_TRANSITION", "Solo se cierra cursada");
+
+    const instances = await tx.evaluationInstance.findMany({
+      where: { subjectAttemptId: attemptId },
+      select: { grade: true, retakes: { select: { grade: true } } },
+    });
+
+    const effectiveGrades = instances.map((instance) => {
+      const grades = [instance.grade, ...instance.retakes.map((retake) => retake.grade)].filter(
+        (grade): grade is number => grade !== null,
+      );
+
+      return grades.length > 0 ? Math.max(...grades) : null;
+    });
+
+    const closed = closeAttempt({
+      effectiveGrades,
+      minRegularize: attempt!.minRegularize,
+      minPromote: attempt!.minPromote,
+      requiresFinal: attempt!.subject.requiresFinal,
+    });
+
+    if ("error" in closed) {
+      ERR.unprocessable("INCOMPLETE_INSTANCES", "Quedan instancias sin nota");
+    } else {
+      const row = await tx.subjectAttempt.update({
+        where: { id: attemptId },
+        data: { status: closed.status, finalGrade: closed.finalGrade, updatedBy: userId },
+        select: attemptSelect,
+      });
+
+      if (closed.status === "PASSED") {
+        await tx.subjectAttempt.updateMany({
+          where: {
+            studyPlanEnrollmentId: attempt!.enrollment.id,
+            subjectId: attempt!.subject.id,
+            status: "PENDING_FINAL",
+            annulledAt: null,
+            id: { not: attemptId },
+          },
+          data: { annulledAt: new Date() },
+        });
+      }
+
+      return row;
+    }
   }
 
   private async updateAttemptTx(

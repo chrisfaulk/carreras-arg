@@ -19,6 +19,8 @@ const { checkTransition } = await import("../dist/modules/tracking/attempt-machi
 
 const { visibleStatus, insufficientCorrelatives } = await import("../dist/modules/tracking/availability-reader.js");
 
+const { closeAttempt } = await import("../dist/modules/tracking/attempt-closer.js");
+
 describe("attempt machine", () => {
   it("rejects manual move to AVAILABLE", () => {
     assert.equal(
@@ -245,5 +247,68 @@ describe("availability reader", () => {
     ];
 
     assert.equal(insufficientCorrelatives(passed, [{ correlativeSubjectId: "s0", type: "CONCURRENT" }], "s1"), false);
+  });
+});
+
+describe("attempt closer", () => {
+  it("7,7 without final is PASSED", () => {
+    assert.deepEqual(closeAttempt({ effectiveGrades: [7, 7], minRegularize: 4, minPromote: 7, requiresFinal: false }), {
+      status: "PASSED",
+      finalGrade: 7,
+      average: 7,
+    });
+  });
+
+  it("4,4 with final is PENDING_FINAL", () => {
+    assert.deepEqual(closeAttempt({ effectiveGrades: [4, 4], minRegularize: 4, minPromote: 7, requiresFinal: true }), {
+      status: "PENDING_FINAL",
+      finalGrade: 4,
+      average: 4,
+    });
+  });
+
+  it("3,3 is FAILED", () => {
+    assert.deepEqual(closeAttempt({ effectiveGrades: [3, 3], minRegularize: 4, minPromote: 7, requiresFinal: true }), {
+      status: "FAILED",
+      finalGrade: 3,
+      average: 3,
+    });
+  });
+
+  it("rounds half up against thresholds (6,7 promotes)", () => {
+    assert.deepEqual(closeAttempt({ effectiveGrades: [6, 7], minRegularize: 4, minPromote: 7, requiresFinal: false }), {
+      status: "PASSED",
+      finalGrade: 7,
+      average: 6.5,
+    });
+  });
+
+  it("rounds half down below (5,6 regularizes)", () => {
+    assert.deepEqual(closeAttempt({ effectiveGrades: [5, 6], minRegularize: 4, minPromote: 7, requiresFinal: false }), {
+      status: "PENDING_FINAL",
+      finalGrade: 6,
+      average: 5.5,
+    });
+  });
+
+  it("null instance blocks close", () => {
+    assert.deepEqual(
+      closeAttempt({ effectiveGrades: [7, null], minRegularize: 4, minPromote: 7, requiresFinal: false }),
+      { error: "INCOMPLETE_INSTANCES" },
+    );
+  });
+
+  it("zero instances block close", () => {
+    assert.deepEqual(closeAttempt({ effectiveGrades: [], minRegularize: 4, minPromote: 7, requiresFinal: false }), {
+      error: "INCOMPLETE_INSTANCES",
+    });
+  });
+
+  it("custom thresholds apply (8,8 with promote 9 is PENDING_FINAL)", () => {
+    assert.deepEqual(closeAttempt({ effectiveGrades: [8, 8], minRegularize: 4, minPromote: 9, requiresFinal: false }), {
+      status: "PENDING_FINAL",
+      finalGrade: 8,
+      average: 8,
+    });
   });
 });

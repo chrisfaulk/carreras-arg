@@ -21,4 +21,9 @@ export class TrackingController {
   updateAttempt(@Req() req: Request, @Param("id") id: string, @Body() body: UpdateAttemptInput) {
     return this.tracking.updateAttempt(req.user.id, id, updateAttemptSchema.parse(body));
   }
+
+  @Put("attempts/:id/close")
+  closeAttempt(@Req() req: Request, @Param("id") id: string) {
+    return this.tracking.closeAttempt(req.user.id, id);
+  }
 }
