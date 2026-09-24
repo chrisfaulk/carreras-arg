@@ -16,6 +16,7 @@ enum AttemptStatus {
   IN_PROGRESS
   PENDING_FINAL
   PASSED
+  FAILED
 }
 
 enum Term {
@@ -153,6 +154,8 @@ model SubjectAttempt {
   subjectId             String                  @map("subject_id") @db.Uuid
   status                AttemptStatus
   finalGrade            Int?                    @map("final_grade")
+  minRegularize         Int                     @default(4) @map("min_regularize")
+  minPromote            Int                     @default(7) @map("min_promote")
   termYear              Int?                    @map("term_year")
   term                  Term?
   annulledAt            DateTime?               @map("annulled_at") @db.Timestamptz
@@ -178,8 +181,6 @@ model EvaluationInstance {
   customTypeName   String?            @map("custom_type_name")
   grade            Int?
   examDate         DateTime?          @map("exam_date") @db.Date
-  minRegularize    Int                @default(4) @map("min_regularize")
-  minPromote       Int                @default(7) @map("min_promote")
   sortOrder        Int                @map("sort_order")
   createdBy        String?            @map("created_by") @db.Uuid
   createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz

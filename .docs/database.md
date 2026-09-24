@@ -82,6 +82,8 @@ erDiagram
         uuid subject_id FK
         enum status
         int final_grade
+        int min_regularize
+        int min_promote
         int term_year
         enum term
         timestamptz annulled_at
@@ -93,8 +95,6 @@ erDiagram
         text custom_type_name
         int grade
         date exam_date
-        int min_regularize
-        int min_promote
         int sort_order
     }
     evaluation_retake {
@@ -187,10 +187,10 @@ erDiagram
 `id UUIDv7 PK`, `user_id FK`, `study_plan_id FK`, `UQ(user_id, study_plan_id)`. Es la raíz de lock: toda mutación de cursada hace `SELECT FOR UPDATE` sobre esta fila.
 
 ### `subject_attempt`
-Histórico N intentos por enrollment y subject. `id UUIDv7 PK`, `study_plan_enrollment_id FK NOT NULL`, `subject_id FK`, `status ENUM('IN_PROGRESS','PENDING_FINAL','PASSED')` (solo estos tres se persisten; `AVAILABLE` y `NOT_AVAILABLE` son vista computada, ver [specification.md](./specification.md) sección 5.1), `final_grade 1-10 nullable`, `term_year nullable`, `term ENUM('FIRST','SECOND') nullable`, `annulled_at nullable` (intento anulado por promoción posterior; se ignora en agregado y promedios), `created_by/at`, `updated_by/at`. Indices `B-Tree(study_plan_enrollment_id, subject_id)`, `B-Tree(status)`, `B-Tree(annulled_at)`. El `user_id` se obtiene via JOIN a `user_study_plan_enrollment` en read models. Regla de unicidad parcial en app (no constraint DB): un solo attempt no anulado en `IN_PROGRESS` o `PENDING_FINAL` por `(study_plan_enrollment_id, subject_id)`; la creación valida el estado visible y devuelve `409` si no es `AVAILABLE` o `PENDING_FINAL`.
+Histórico N intentos por enrollment y subject. `id UUIDv7 PK`, `study_plan_enrollment_id FK NOT NULL`, `subject_id FK`, `status ENUM('IN_PROGRESS','PENDING_FINAL','PASSED','FAILED')` (`FAILED` = desaprobado cerrado, solo vía cierre explícito; `AVAILABLE` y `NOT_AVAILABLE` son vista computada, ver [specification.md](./specification.md) sección 5.1), `final_grade 1-10 nullable`, `min_regularize default 4`, `min_promote default 7` (umbrales del attempt, editables solo en `IN_PROGRESS`), `term_year nullable`, `term ENUM('FIRST','SECOND') nullable`, `annulled_at nullable` (intento anulado por promoción posterior; se ignora en agregado y promedios), `created_by/at`, `updated_by/at`. Indices `B-Tree(study_plan_enrollment_id, subject_id)`, `B-Tree(status)`, `B-Tree(annulled_at)`. El `user_id` se obtiene via JOIN a `user_study_plan_enrollment` en read models. Regla de unicidad parcial en app (no constraint DB): un solo attempt no anulado en `IN_PROGRESS` o `PENDING_FINAL` por `(study_plan_enrollment_id, subject_id)`; la creación valida el estado visible y devuelve `409` si no es `AVAILABLE` o `PENDING_FINAL`.
 
 ### `evaluation_instance`
-`id UUIDv7 PK`, `subject_attempt_id FK`, `type ENUM('PARTIAL','PRACTICAL_WORK','DELIVERABLE','OTHER')`, `custom_type_name nullable` (obligatorio si `OTHER`), `grade 1-10 nullable`, `exam_date nullable`, `min_regularize default 4`, `min_promote default 7` (por attempt), `sort_order`.
+`id UUIDv7 PK`, `subject_attempt_id FK`, `type ENUM('PARTIAL','PRACTICAL_WORK','DELIVERABLE','OTHER')`, `custom_type_name nullable` (obligatorio si `OTHER`), `grade 1-10 nullable`, `exam_date nullable`, `sort_order`.
 
 ### `evaluation_retake`
 `id UUIDv7 PK`, `evaluation_instance_id FK`, `grade 1-10`, `exam_date nullable`, `created_at`. La nota efectiva de la instancia es `MAX(instance.grade, retakes.grade)`.

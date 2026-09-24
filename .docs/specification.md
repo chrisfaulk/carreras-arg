@@ -52,7 +52,7 @@ Ver esquema exacto en [database.md](./database.md).
 - **Subject**: `name` único dentro de `study_plan` (`UQ study_plan_id, name`). Pertenece a un solo plan (duplicación intencional entre planes para desacoplar). Campos: `is_elective`, `requires_final`.
 - **SubjectCorrelative**: relación `subject_id` hacia `correlative_subject_id` con `type: PREVIOUS | CONCURRENT`. Solo entre subjects del mismo plan. Lógica exclusivamente `AND` (todas deben cumplirse). Sin auto-referencia ni ciclos.
 - **UserStudyPlanEnrollment**: `user_id` y `study_plan_id` (`UQ`). Un usuario puede estar en N planes, incluso dos planes de la misma carrera.
-- **SubjectAttempt**: histórico de cursadas por enrollment y materia (N intentos permitidos). Requiere enrollment previo, no existe cursada sin anotación al plan. Solo persiste `IN_PROGRESS | PENDING_FINAL | PASSED`. Columna `annulled_at nullable`: un attempt anulado se conserva pero se ignora en el estado visible y en promedios.
+- **SubjectAttempt**: histórico de cursadas por enrollment y materia (N intentos permitidos). Requiere enrollment previo, no existe cursada sin anotación al plan. Persiste `IN_PROGRESS | PENDING_FINAL | PASSED | FAILED` (`FAILED` = desaprobado cerrado, solo se llega vía cierre explícito y habilita recursada). Umbrales `min_regularize` (default 4) y `min_promote` (default 7) viven en el attempt, editables solo mientras está `IN_PROGRESS`. Columna `annulled_at nullable`: un attempt anulado se conserva pero se ignora en el estado visible y en promedios.
 
 ## 5. Reglas de negocio: cursada y estados
 
@@ -70,6 +70,8 @@ Una materia puede tener N attempts (historial + recursadas). El estado visible e
 | `AVAILABLE` | 1 |
 | `NOT_AVAILABLE` | 0 |
 
+Los attempts `FAILED` se ignoran en el agregado (cuentan solo en promedios).
+
 `AVAILABLE` y `NOT_AVAILABLE` nunca se persisten en `subject_attempt`; se computan al leer (ver sección 5.2). Si no hay ningún attempt no anulado y las correlativas se cumplen, el visible es `AVAILABLE`; si no se cumplen, `NOT_AVAILABLE`.
 
 Si una correlativa simultánea se abandona despues de haber habilitado una materia posterior, la materia posterior se mantiene pero la UI muestra aviso "correlativas insuficientes" (`insufficientCorrelatives: true`).
@@ -85,20 +87,20 @@ La disponibilidad se calcula en cada lectura dentro de la misma transacción de 
 - **Creación:** `POST /enrollments/:enrollmentId/attempts { subjectId }` crea un attempt en `IN_PROGRESS`. Solo permitido si el estado visible de la materia es `AVAILABLE` o `PENDING_FINAL` (recursada para promocionar o rendir libre). Cualquier otro visible (`NOT_AVAILABLE`, `IN_PROGRESS`, `PASSED`) devuelve `409`. En la misma transacción se crea el template de evaluación (2 instancias `PARTIAL`).
 - **Transición directa:** `PUT /attempts/:id { status, finalGrade?, termYear?, term? }` muta un attempt entre `IN_PROGRESS <-> PENDING_FINAL <-> PASSED`. Es idempotente: repetir el mismo `status` devuelve `200` sin efecto. Transiciones manuales hacia `AVAILABLE` o `NOT_AVAILABLE` están prohibidas (`422`).
 - **Examen libre:** `AVAILABLE -> PASSED` solo existe como creación de attempt en `IN_PROGRESS` más `final_exam` con `is_external_exam = true` en la misma transacción que el pase a `PASSED`. Si `subject.requires_final = false`, se permite `IN_PROGRESS -> PASSED` directo con nota; si es `true`, se exige un `final_exam` aprobado.
-- **Desaprobado / recursada:** un attempt que al cerrarse no alcanza `min_regularize` queda cerrado como desaprobado (su `final_grade` cuenta en `average_with_failures`, ver sección 6) y habilita una nueva recursada vía `POST` cuando el visible lo permite.
+- **Desaprobado / recursada:** un attempt que al cerrarse no alcanza `min_regularize` queda `FAILED` (su `final_grade` cuenta en `average_with_failures`, ver sección 6) y habilita una nueva recursada vía `POST` cuando el visible lo permite (`FAILED` no participa del estado visible: resuelve a `AVAILABLE` si las correlativas se cumplen).
 - **Anulación por promoción:** cuando `PUT /attempts/:id/close` lleva un `IN_PROGRESS` a `PASSED`, todos los siblings en `PENDING_FINAL` del mismo `(enrollment, subject)` se marcan `annulled_at = now()` en la misma transacción. Su nota deja de contar en promedios y en el agregado.
 - **Exclusión mutua:** no se puede crear ni editar un `final_exam` de un attempt si existe un sibling `IN_PROGRESS` no anulado para el mismo `(enrollment, subject)`. Devuelve `409 FINAL_BLOCKED_BY_IN_PROGRESS`.
 
 ### 5.4 Evaluación, cierre y finales
 
 - Template por defecto al crear `IN_PROGRESS`: 2 instancias `PARTIAL`. Cada instancia admite N `retakes` (recuperatorios).
-- Tipos de `evaluation_instance`: `PARTIAL | PRACTICAL_WORK | DELIVERABLE | OTHER` (nombre custom si `OTHER`). Campos por instancia: `grade 1-10 nullable`, `exam_date nullable`, `min_regularize default 4`, `min_promote default 7` (por attempt, editables), `sort_order`. **Toda** instancia cuenta para la nota del attempt, sin distinción de tipo.
+- Tipos de `evaluation_instance`: `PARTIAL | PRACTICAL_WORK | DELIVERABLE | OTHER` (nombre custom si `OTHER`). Campos por instancia: `grade 1-10 nullable`, `exam_date nullable`, `sort_order`. **Toda** instancia cuenta para la nota del attempt, sin distinción de tipo.
 - Nota efectiva por instancia: `effective = MAX(grade, retakes.grade)`. Manda la mejor nota, no la última. Las instancias sin nota (`effective NULL`) se ignoran en el promedio pero **bloquean el cierre**: `PUT /attempts/:id/close` devuelve `422 INCOMPLETE_INSTANCES` si queda alguna. Esas instancias se pueden completar por `PUT` o eliminar por `DELETE`.
-- Cierre explícito: el usuario pulsa "Cerrar cursada" → `PUT /attempts/:id/close`. El servidor calcula `avg = AVG(effective NOT NULL)`, lo redondea a entero con mitad hacia arriba (fracción `< 0.5` hacia abajo, `>= 0.5` hacia arriba) y ese entero es el `final_grade` del attempt. Decisión:
+- Cierre explícito: el usuario pulsa "Cerrar cursada" → `PUT /attempts/:id/close`. El servidor calcula `avg = AVG(effective NOT NULL)`, lo redondea a entero con mitad hacia arriba (fracción `< 0.5` hacia abajo, `>= 0.5` hacia arriba) y ese entero es el `final_grade` del attempt. Los umbrales son los del attempt (`min_regularize`, `min_promote`). Decisión:
   - `avg >= min_promote` y `requires_final = false` → `PASSED`
   - `avg >= min_promote` y `requires_final = true` → `PENDING_FINAL` (el final sigue siendo obligatorio)
   - `min_regularize <= avg < min_promote` → `PENDING_FINAL`
-  - `avg < min_regularize` → desaprobado (cerrado, habilita recursada)
+  - `avg < min_regularize` → `FAILED` (desaprobado, habilita recursada)
 - `final_exam`: `grade`, `exam_date`, `is_external_exam` (rendir libre). Pasar `PENDING_FINAL -> PASSED` por final exige un `final_exam` aprobado en el attempt.
 - Cada intento puede registrar `term_year`, `term (FIRST|SECOND)` (calendario argentino standard) y fechas exactas de examenes.
 
@@ -108,7 +110,7 @@ La disponibilidad se calcula en cada lectura dentro de la misma transacción de 
 
 ## 6. Promedios y avance
 
-- Dos promedios separados por `enrollment` (plan): `average` (solo attempts `PASSED` no anulados con `final_grade NOT NULL`) y `average_with_failures` (todo `final_grade NOT NULL` de attempts `PASSED` no anulados, más todo `final_grade NOT NULL` de attempts cerrados desaprobados, más cada `final_exam.grade NOT NULL < 4`). Cada fila cuenta una vez. `NULL` siempre se ignora. Aplazo = nota `< 4`. Cálculo simple no ponderado. Electivas entran igual que obligatorias.
+- Dos promedios separados por `enrollment` (plan). `average`: una sola nota aprobada por materia — si el attempt `PASSED` no anulado tiene un `final_exam` aprobado (`grade >= 4`), manda esa nota; si no, el `final_grade` del attempt. `average_with_failures`: todo lo de `average`, más cada `final_grade NOT NULL` de attempts `FAILED` no anulados, más cada `final_exam.grade NOT NULL < 4`. Attempts anulados (`annulled_at NOT NULL`) nunca cuentan. `NULL` siempre se ignora. Aplazo = nota `< 4`. Cálculo simple no ponderado. Electivas entran igual que obligatorias. Regla de negocio: una materia sin final obligatorio que promociona directo a `PASSED` no puede tener un `final_exam` aprobado (se rechaza con `409 FINAL_NOT_ALLOWED`).
 - Porcentaje de avance por plan: `total = obligatorias + required_electives`; `ok = obligatorias PASSED + MIN(electivas PASSED, required_electives)`; `% = ok / total`.
 
 ## 7. Privacidad y visibilidad
