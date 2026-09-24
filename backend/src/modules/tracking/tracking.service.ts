@@ -5,14 +5,15 @@ import { PrismaService } from "../../prisma.service";
 import { ERR } from "../../shared/api-error";
 import { lockedEnrollment } from "../../shared/read-models";
 import { checkTransition } from "./attempt-machine";
+import { visibleStatus, VisibleStatus } from "./availability-reader";
+
+export type { VisibleStatus } from "./availability-reader";
 
 export const createAttemptSchema = z.object({ subjectId: z.string().uuid() });
 
 export type CreateAttemptInput = z.input<typeof createAttemptSchema>;
 
 export type CreateAttemptData = z.infer<typeof createAttemptSchema>;
-
-export type VisibleStatus = "NOT_AVAILABLE" | "AVAILABLE" | "PENDING_FINAL" | "IN_PROGRESS" | "PASSED";
 
 export const updateAttemptSchema = z.object({
   status: z.enum(["IN_PROGRESS", "PENDING_FINAL", "PASSED", "FAILED", "AVAILABLE", "NOT_AVAILABLE"]),
@@ -26,10 +27,6 @@ export const updateAttemptSchema = z.object({
 export type UpdateAttemptInput = z.input<typeof updateAttemptSchema>;
 
 export type UpdateAttemptData = z.infer<typeof updateAttemptSchema>;
-
-const PREVIOUS_OK = new Set(["PASSED", "PENDING_FINAL"]);
-
-const CONCURRENT_OK = new Set(["PASSED", "PENDING_FINAL", "IN_PROGRESS"]);
 
 const attemptSelect = {
   id: true,
@@ -141,7 +138,7 @@ export class TrackingService {
     if (!subject || subject.studyPlanId !== enrollment.studyPlanId)
       ERR.unprocessable("INVALID_SUBJECT", "La materia no pertenece al plan");
 
-    const visible = await this.visibleStatus(tx, enrollment.id, data.subjectId);
+    const visible = await this.resolveVisible(tx, enrollment.id, data.subjectId);
 
     if (visible !== "AVAILABLE" && visible !== "PENDING_FINAL")
       ERR.conflict("INVALID_VISIBLE_STATE", "La materia no está disponible para cursar");
@@ -163,7 +160,7 @@ export class TrackingService {
     });
   }
 
-  private async visibleStatus(
+  private async resolveVisible(
     tx: Prisma.TransactionClient,
     enrollmentId: string,
     subjectId: string,
@@ -173,42 +170,11 @@ export class TrackingService {
       select: { subjectId: true, status: true },
     });
 
-    const aggregate = new Map<string, Set<string>>();
-
-    for (const attempt of attempts) {
-      if (attempt.status === "FAILED") continue;
-
-      const current = aggregate.get(attempt.subjectId);
-
-      if (current) current.add(attempt.status);
-      else aggregate.set(attempt.subjectId, new Set([attempt.status]));
-    }
-
-    const own = aggregate.get(subjectId);
-
-    if (own?.has("PASSED")) return "PASSED";
-
-    if (own?.has("IN_PROGRESS")) return "IN_PROGRESS";
-
-    if (own?.has("PENDING_FINAL")) return "PENDING_FINAL";
-
     const correlatives = await tx.subjectCorrelative.findMany({
       where: { subjectId },
       select: { correlativeSubjectId: true, type: true },
     });
 
-    const available = correlatives.every((correlative) => {
-      const statuses = aggregate.get(correlative.correlativeSubjectId);
-
-      if (!statuses) return false;
-
-      const ok = correlative.type === "PREVIOUS" ? PREVIOUS_OK : CONCURRENT_OK;
-
-      for (const status of statuses) if (ok.has(status)) return true;
-
-      return false;
-    });
-
-    return available ? "AVAILABLE" : "NOT_AVAILABLE";
+    return visibleStatus(attempts, correlatives, subjectId);
   }
 }

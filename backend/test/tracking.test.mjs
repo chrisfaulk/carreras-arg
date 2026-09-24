@@ -17,6 +17,8 @@ process.env.ADMIN_SEED_EMAIL ??= "admin@example.com";
 
 const { checkTransition } = await import("../dist/modules/tracking/attempt-machine.js");
 
+const { visibleStatus, insufficientCorrelatives } = await import("../dist/modules/tracking/availability-reader.js");
+
 describe("attempt machine", () => {
   it("rejects manual move to AVAILABLE", () => {
     assert.equal(
@@ -149,5 +151,99 @@ describe("attempt machine", () => {
       }),
       null,
     );
+  });
+});
+
+describe("availability reader", () => {
+  it("no attempts and no correlatives is AVAILABLE", () => {
+    assert.equal(visibleStatus([], [], "s1"), "AVAILABLE");
+  });
+
+  it("unmet PREVIOUS is NOT_AVAILABLE", () => {
+    assert.equal(visibleStatus([], [{ correlativeSubjectId: "s0", type: "PREVIOUS" }], "s1"), "NOT_AVAILABLE");
+  });
+
+  it("PENDING_FINAL satisfies PREVIOUS", () => {
+    assert.equal(
+      visibleStatus(
+        [{ subjectId: "s0", status: "PENDING_FINAL" }],
+        [{ correlativeSubjectId: "s0", type: "PREVIOUS" }],
+        "s1",
+      ),
+      "AVAILABLE",
+    );
+  });
+
+  it("IN_PROGRESS does not satisfy PREVIOUS", () => {
+    assert.equal(
+      visibleStatus(
+        [{ subjectId: "s0", status: "IN_PROGRESS" }],
+        [{ correlativeSubjectId: "s0", type: "PREVIOUS" }],
+        "s1",
+      ),
+      "NOT_AVAILABLE",
+    );
+  });
+
+  it("IN_PROGRESS satisfies CONCURRENT", () => {
+    assert.equal(
+      visibleStatus(
+        [{ subjectId: "s0", status: "IN_PROGRESS" }],
+        [{ correlativeSubjectId: "s0", type: "CONCURRENT" }],
+        "s1",
+      ),
+      "AVAILABLE",
+    );
+  });
+
+  it("FAILED correlative does not satisfy", () => {
+    assert.equal(
+      visibleStatus(
+        [{ subjectId: "s0", status: "FAILED" }],
+        [{ correlativeSubjectId: "s0", type: "CONCURRENT" }],
+        "s1",
+      ),
+      "NOT_AVAILABLE",
+    );
+  });
+
+  it("FAILED own resolves back to AVAILABLE", () => {
+    assert.equal(visibleStatus([{ subjectId: "s1", status: "FAILED" }], [], "s1"), "AVAILABLE");
+  });
+
+  it("priority PASSED over IN_PROGRESS over PENDING_FINAL", () => {
+    const attempts = [
+      { subjectId: "s1", status: "PENDING_FINAL" },
+      { subjectId: "s1", status: "IN_PROGRESS" },
+    ];
+
+    assert.equal(visibleStatus(attempts, [], "s1"), "IN_PROGRESS");
+
+    assert.equal(visibleStatus([...attempts, { subjectId: "s1", status: "PASSED" }], [], "s1"), "PASSED");
+  });
+
+  it("flags insufficient when concurrent dropped mid-course", () => {
+    const attempts = [
+      { subjectId: "s1", status: "IN_PROGRESS" },
+      { subjectId: "s0", status: "FAILED" },
+    ];
+
+    assert.equal(insufficientCorrelatives(attempts, [{ correlativeSubjectId: "s0", type: "CONCURRENT" }], "s1"), true);
+  });
+
+  it("no flag when correlatives hold or subject passed", () => {
+    const ok = [
+      { subjectId: "s1", status: "IN_PROGRESS" },
+      { subjectId: "s0", status: "IN_PROGRESS" },
+    ];
+
+    assert.equal(insufficientCorrelatives(ok, [{ correlativeSubjectId: "s0", type: "CONCURRENT" }], "s1"), false);
+
+    const passed = [
+      { subjectId: "s1", status: "PASSED" },
+      { subjectId: "s0", status: "FAILED" },
+    ];
+
+    assert.equal(insufficientCorrelatives(passed, [{ correlativeSubjectId: "s0", type: "CONCURRENT" }], "s1"), false);
   });
 });
