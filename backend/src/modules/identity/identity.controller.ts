@@ -1,6 +1,8 @@
 import { Body, Controller, Get, Post, Put, Query, Req, Res } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import type { Request, Response } from "express";
 import { Public } from "./guards";
+import { FORGOT_THROTTLE, LOGIN_THROTTLE } from "../../shared/throttling";
 import {
   ACCESS_DAYS,
   ForgotInput,
@@ -53,6 +55,7 @@ export class IdentityController {
   }
 
   @Public()
+  @Throttle({ default: LOGIN_THROTTLE })
   @Post("auth/login")
   async login(@Body() body: LoginInput, @Res({ passthrough: true }) res: Response) {
     const session = await this.identity.login(loginSchema.parse(body));
@@ -82,6 +85,7 @@ export class IdentityController {
   }
 
   @Public()
+  @Throttle({ default: FORGOT_THROTTLE })
   @Post("auth/forgot")
   forgot(@Body() body: ForgotInput) {
     return this.identity.forgot(forgotSchema.parse(body));
