@@ -10,7 +10,7 @@
 - Paginación: `?page=1&limit=20` (default 20, max 50). Respuesta `{ data: [], meta: { page, limit, total } }`.
 - Filtros y búsqueda: `?q=nombre` (`ILIKE nombre%` con `B-Tree`), `?status=AVAILABLE|NOT_AVAILABLE|IN_PROGRESS|PENDING_FINAL|PASSED`, `?studyPlanId=...`, segun recurso.
 - Mutaciones idempotentes: `PUT` repetido con el mismo cuerpo devuelve `200` sin efecto (no-op), salvo creación con `POST`.
-- Errores: `{ error: { code, message } }` sin exponer PII o stack. Códigos usados: `401 UNAUTHENTICATED`, `403 FORBIDDEN` (incluye `AdminOnly`), `404 NOT_FOUND` (sin oráculo: un recurso ajeno responde `404`, nunca `403` diferencial salvo admin), `409 CONFLICT` (`DUPLICATE`, `INVALID_VISIBLE_STATE`, `FINAL_BLOCKED_BY_IN_PROGRESS`, `DELETE_BLOCKED_BY_CHILDREN`), `422 UNPROCESSABLE` (`INVALID_TRANSITION`, `INCOMPLETE_INSTANCES`). Ver [ui-ux.md](./ui-ux.md) para mensajes.
+- Errores: `{ error: { code, message } }` sin exponer PII o stack. Códigos usados: `401 UNAUTHENTICATED`, `403 FORBIDDEN` (incluye `AdminOnly`), `404 NOT_FOUND` (sin oráculo: un recurso ajeno responde `404`, nunca `403` diferencial salvo admin), `409 CONFLICT` (`DUPLICATE`, `INVALID_VISIBLE_STATE`, `FINAL_BLOCKED_BY_IN_PROGRESS`, `FINAL_NOT_ALLOWED`, `DELETE_BLOCKED_BY_CHILDREN`), `422 UNPROCESSABLE` (`INVALID_TRANSITION`, `INCOMPLETE_INSTANCES`). Ver [ui-ux.md](./ui-ux.md) para mensajes.
 - DTOs en ingles, projections directo desde DB (`select`), no entidades. Validación con zod en trust boundaries. Ver [standards.md](./standards.md).
 - Headers: `Content-Security-Policy` sin terceros por defecto (ver `standards.md` y `legal/cookies.md`), `Helmet`, CORS whitelist.
 

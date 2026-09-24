@@ -4,6 +4,7 @@ import { z } from "zod";
 import { PrismaService } from "../../prisma.service";
 import { ERR, OkResult } from "../../shared/api-error";
 import { lockedEnrollment } from "../../shared/read-models";
+import { checkFinalAllowed } from "./final-guard";
 
 export const instanceSchema = z.object({
   type: z.enum(["PARTIAL", "PRACTICAL_WORK", "DELIVERABLE", "OTHER"]),
@@ -38,6 +39,26 @@ export type RetakeInput = z.input<typeof retakeSchema>;
 
 export type RetakeData = z.infer<typeof retakeSchema>;
 
+export const finalExamSchema = z.object({
+  grade: z.number().int().min(1).max(10).optional(),
+  examDate: z.string().date().optional(),
+  isExternalExam: z.boolean().default(false),
+});
+
+export type FinalExamInput = z.input<typeof finalExamSchema>;
+
+export type FinalExamData = z.infer<typeof finalExamSchema>;
+
+export const finalExamUpdateSchema = z.object({
+  grade: z.number().int().min(1).max(10).nullable().optional(),
+  examDate: z.string().date().nullable().optional(),
+  isExternalExam: z.boolean().optional(),
+});
+
+export type FinalExamUpdateInput = z.input<typeof finalExamUpdateSchema>;
+
+export type FinalExamUpdateData = z.infer<typeof finalExamUpdateSchema>;
+
 const instanceSelect = {
   id: true,
   subjectAttemptId: true,
@@ -54,6 +75,14 @@ const retakeSelect = {
   grade: true,
   examDate: true,
 } satisfies Prisma.EvaluationRetakeSelect;
+
+const finalExamSelect = {
+  id: true,
+  subjectAttemptId: true,
+  grade: true,
+  examDate: true,
+  isExternalExam: true,
+} satisfies Prisma.FinalExamSelect;
 
 @Injectable()
 export class EvaluationService {
@@ -137,15 +166,110 @@ export class EvaluationService {
     });
   }
 
+  createFinalExam(userId: string, attemptId: string, data: FinalExamData) {
+    return this.prisma.withUserContext(userId, async (tx) => {
+      const attempt = await this.ownedAttempt(tx, userId, attemptId);
+
+      await lockedEnrollment(tx, attempt.enrollmentId, userId);
+
+      const siblings = await tx.subjectAttempt.count({
+        where: {
+          studyPlanEnrollmentId: attempt.enrollmentId,
+          subjectId: attempt.subject.id,
+          status: "IN_PROGRESS",
+          annulledAt: null,
+          id: { not: attemptId },
+        },
+      });
+
+      const blocked = checkFinalAllowed({
+        requiresFinal: attempt.subject.requiresFinal,
+        grade: data.grade,
+        siblingInProgress: siblings > 0,
+      });
+
+      if (blocked === "FINAL_BLOCKED_BY_IN_PROGRESS") ERR.conflict(blocked, "Hay cursada en progreso para esa materia");
+
+      if (blocked) ERR.conflict(blocked, "Materia sin final obligatorio");
+
+      return tx.finalExam.create({
+        data: {
+          subjectAttemptId: attemptId,
+          grade: data.grade,
+          examDate: data.examDate ? new Date(data.examDate) : undefined,
+          isExternalExam: data.isExternalExam,
+          createdBy: userId,
+        },
+        select: finalExamSelect,
+      });
+    });
+  }
+
+  updateFinalExam(userId: string, finalId: string, data: FinalExamUpdateData) {
+    return this.prisma.withUserContext(userId, async (tx) => {
+      const final = await tx.finalExam.findUnique({
+        where: { id: finalId },
+        select: {
+          ...finalExamSelect,
+          attempt: {
+            select: {
+              id: true,
+              enrollment: { select: { id: true, userId: true } },
+              subject: { select: { id: true, requiresFinal: true } },
+            },
+          },
+        },
+      });
+
+      if (!final || final.attempt.enrollment.userId !== userId) ERR.notFound();
+
+      await lockedEnrollment(tx, final!.attempt.enrollment.id, userId);
+
+      const siblings = await tx.subjectAttempt.count({
+        where: {
+          studyPlanEnrollmentId: final!.attempt.enrollment.id,
+          subjectId: final!.attempt.subject.id,
+          status: "IN_PROGRESS",
+          annulledAt: null,
+          id: { not: final!.attempt.id },
+        },
+      });
+
+      const blocked = checkFinalAllowed({
+        requiresFinal: final!.attempt.subject.requiresFinal,
+        grade: data.grade !== undefined ? data.grade : final!.grade,
+        siblingInProgress: siblings > 0,
+      });
+
+      if (blocked === "FINAL_BLOCKED_BY_IN_PROGRESS") ERR.conflict(blocked, "Hay cursada en progreso para esa materia");
+
+      if (blocked) ERR.conflict(blocked, "Materia sin final obligatorio");
+
+      const patch: Prisma.FinalExamUpdateInput = { updatedBy: userId };
+
+      if (data.grade !== undefined) patch.grade = data.grade;
+
+      if (data.examDate !== undefined) patch.examDate = data.examDate ? new Date(data.examDate) : null;
+
+      if (data.isExternalExam !== undefined) patch.isExternalExam = data.isExternalExam;
+
+      return tx.finalExam.update({ where: { id: finalId }, data: patch, select: finalExamSelect });
+    });
+  }
+
   private async ownedAttempt(tx: Prisma.TransactionClient, userId: string, attemptId: string) {
     const attempt = await tx.subjectAttempt.findUnique({
       where: { id: attemptId },
-      select: { id: true, enrollment: { select: { id: true, userId: true } } },
+      select: {
+        id: true,
+        enrollment: { select: { id: true, userId: true } },
+        subject: { select: { id: true, requiresFinal: true } },
+      },
     });
 
     if (!attempt || attempt.enrollment.userId !== userId) ERR.notFound();
 
-    return { id: attempt!.id, enrollmentId: attempt!.enrollment.id };
+    return { id: attempt!.id, enrollmentId: attempt!.enrollment.id, subject: attempt!.subject };
   }
 
   private checkCustomName(type: string, customTypeName: string | null | undefined): void {

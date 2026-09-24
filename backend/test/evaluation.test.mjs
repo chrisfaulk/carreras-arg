@@ -17,6 +17,8 @@ process.env.ADMIN_SEED_EMAIL ??= "admin@example.com";
 
 const { effectiveGrade } = await import("../dist/modules/evaluation/effective-grade.js");
 
+const { checkFinalAllowed } = await import("../dist/modules/evaluation/final-guard.js");
+
 describe("effective grade (best wins)", () => {
   it("grade without retakes stands", () => {
     assert.equal(effectiveGrade(6, []), 6);
@@ -40,5 +42,30 @@ describe("effective grade (best wins)", () => {
 
   it("null grade without retakes stays null", () => {
     assert.equal(effectiveGrade(null, []), null);
+  });
+});
+
+describe("final guard", () => {
+  it("sibling in progress blocks final", () => {
+    assert.equal(
+      checkFinalAllowed({ requiresFinal: true, grade: 8, siblingInProgress: true }),
+      "FINAL_BLOCKED_BY_IN_PROGRESS",
+    );
+  });
+
+  it("approved final on subject without mandatory final is rejected", () => {
+    assert.equal(checkFinalAllowed({ requiresFinal: false, grade: 8, siblingInProgress: false }), "FINAL_NOT_ALLOWED");
+  });
+
+  it("failed final on subject without mandatory final is allowed", () => {
+    assert.equal(checkFinalAllowed({ requiresFinal: false, grade: 3, siblingInProgress: false }), null);
+  });
+
+  it("regular final is allowed", () => {
+    assert.equal(checkFinalAllowed({ requiresFinal: true, grade: 8, siblingInProgress: false }), null);
+  });
+
+  it("external free exam is allowed without siblings", () => {
+    assert.equal(checkFinalAllowed({ requiresFinal: true, grade: undefined, siblingInProgress: false }), null);
   });
 });

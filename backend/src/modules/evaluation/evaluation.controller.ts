@@ -2,9 +2,13 @@ import { Body, Controller, Delete, Get, Param, Post, Put, Req } from "@nestjs/co
 import type { Request } from "express";
 import {
   EvaluationService,
+  FinalExamInput,
+  FinalExamUpdateInput,
   InstanceInput,
   InstanceUpdateInput,
   RetakeInput,
+  finalExamSchema,
+  finalExamUpdateSchema,
   instanceSchema,
   instanceUpdateSchema,
   retakeSchema,
@@ -42,5 +46,15 @@ export class EvaluationController {
   @Delete("retakes/:id")
   deleteRetake(@Req() req: Request, @Param("id") id: string) {
     return this.evaluation.deleteRetake(req.user.id, id);
+  }
+
+  @Post("attempts/:id/final-exams")
+  createFinalExam(@Req() req: Request, @Param("id") id: string, @Body() body: FinalExamInput) {
+    return this.evaluation.createFinalExam(req.user.id, id, finalExamSchema.parse(body));
+  }
+
+  @Put("final-exams/:id")
+  updateFinalExam(@Req() req: Request, @Param("id") id: string, @Body() body: FinalExamUpdateInput) {
+    return this.evaluation.updateFinalExam(req.user.id, id, finalExamUpdateSchema.parse(body));
   }
 }
