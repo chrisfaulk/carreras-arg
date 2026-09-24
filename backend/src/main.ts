@@ -5,7 +5,7 @@ import { env } from "./env";
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
-
+  app.setGlobalPrefix("api");
   await app.listen(env.PORT);
 }
 
