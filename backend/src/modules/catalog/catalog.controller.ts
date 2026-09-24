@@ -2,7 +2,17 @@ import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, UseGuards 
 import type { Request } from "express";
 import { RawListQuery, listQuerySchema } from "../../shared/pagination";
 import { AdminGuard, Public } from "../identity/guards";
-import { CatalogService, CareerInput, careerSchema, UniversityInput, universitySchema } from "./catalog.service";
+import {
+  CatalogService,
+  CareerInput,
+  careerSchema,
+  PlanInput,
+  planSchema,
+  PlanUpdateInput,
+  planUpdateSchema,
+  UniversityInput,
+  universitySchema,
+} from "./catalog.service";
 
 @Controller()
 export class CatalogController {
@@ -54,5 +64,29 @@ export class CatalogController {
   @Delete("careers/:id")
   deleteCareer(@Req() req: Request, @Param("id") id: string) {
     return this.catalog.deleteCareer(req.user.id, id);
+  }
+
+  @Public()
+  @Get("study-plans")
+  plans(@Query() query: RawListQuery) {
+    return this.catalog.listPlans(listQuerySchema.parse(query));
+  }
+
+  @UseGuards(AdminGuard)
+  @Post("study-plans")
+  createPlan(@Req() req: Request, @Body() body: PlanInput) {
+    return this.catalog.createPlan(req.user.id, planSchema.parse(body));
+  }
+
+  @UseGuards(AdminGuard)
+  @Put("study-plans/:id")
+  updatePlan(@Req() req: Request, @Param("id") id: string, @Body() body: PlanUpdateInput) {
+    return this.catalog.updatePlan(req.user.id, id, planUpdateSchema.parse(body));
+  }
+
+  @UseGuards(AdminGuard)
+  @Delete("study-plans/:id")
+  deletePlan(@Req() req: Request, @Param("id") id: string) {
+    return this.catalog.deletePlan(req.user.id, id);
   }
 }

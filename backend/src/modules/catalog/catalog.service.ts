@@ -9,6 +9,17 @@ export const universitySchema = z.object({ name: z.string().min(1).max(120) });
 
 export const careerSchema = universitySchema.extend({ universityId: z.string().uuid() });
 
+export const planSchema = z.object({
+  careerId: z.string().uuid(),
+  year: z.number().int(),
+  requiredElectives: z.number().int().min(0).default(0),
+});
+
+export const planUpdateSchema = z.object({
+  year: z.number().int().optional(),
+  requiredElectives: z.number().int().min(0).optional(),
+});
+
 export type UniversityInput = z.input<typeof universitySchema>;
 
 export type UniversityData = z.infer<typeof universitySchema>;
@@ -16,6 +27,28 @@ export type UniversityData = z.infer<typeof universitySchema>;
 export type CareerInput = z.input<typeof careerSchema>;
 
 export type CareerData = z.infer<typeof careerSchema>;
+
+export type PlanInput = z.input<typeof planSchema>;
+
+export type PlanData = z.infer<typeof planSchema>;
+
+export type PlanUpdateInput = z.input<typeof planUpdateSchema>;
+
+export type PlanUpdateData = z.infer<typeof planUpdateSchema>;
+
+type JsonField = string | number | boolean | undefined;
+
+type JsonEntry = [string, Exclude<JsonField, undefined>];
+
+function prune(fields: Array<[string, JsonField]>): Prisma.InputJsonValue {
+  const kept = fields.flatMap((entry): JsonEntry[] => {
+    if (entry[1] === undefined) return [];
+
+    return [[entry[0], entry[1]]];
+  });
+
+  return Object.fromEntries(kept);
+}
 
 async function audit(
   tx: Prisma.TransactionClient,
@@ -184,6 +217,77 @@ export class CatalogService {
     if (kids > 0) ERR.conflict("DELETE_BLOCKED_BY_CHILDREN", "Tiene planes asociados");
 
     await this.tx(actorId, "DELETE", "career", id, {}, (t) => t.career.delete({ where: { id } }));
+
+    return { ok: true };
+  }
+
+  async listPlans(query: ListQuery) {
+    const { page, limit, skip } = pagination(query);
+    const where: Prisma.StudyPlanWhereInput = query.careerId ? { careerId: query.careerId } : {};
+
+    return this.prisma.$transaction(async (t) => {
+      const [data, total] = await Promise.all([
+        t.studyPlan.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { year: "desc" },
+          select: { id: true, careerId: true, year: true, requiredElectives: true },
+        }),
+        t.studyPlan.count({ where }),
+      ]);
+
+      return paged(data, total, page, limit);
+    });
+  }
+
+  async createPlan(actorId: string, data: PlanData) {
+    try {
+      const row = await this.prisma.studyPlan.create({
+        data: {
+          careerId: data.careerId,
+          year: data.year,
+          requiredElectives: data.requiredElectives,
+          createdBy: actorId,
+        },
+        select: { id: true, careerId: true, year: true, requiredElectives: true },
+      });
+
+      await this.prisma.auditLog.create({
+        data: {
+          actorId,
+          action: "CREATE",
+          entity: "study_plan",
+          entityId: row.id,
+          diffJson: { careerId: data.careerId, year: data.year },
+        },
+      });
+
+      return row;
+    } catch (error) {
+      if (isDuplicate(error)) ERR.conflict("DUPLICATE", "Plan duplicado para esa carrera");
+
+      throw error;
+    }
+  }
+
+  updatePlan(actorId: string, id: string, data: PlanUpdateData) {
+    const diff = prune([
+      ["year", data.year],
+      ["requiredElectives", data.requiredElectives],
+    ]);
+
+    return this.tx(actorId, "UPDATE", "study_plan", id, diff, (t) =>
+      t.studyPlan.update({ where: { id }, data: { ...data, updatedBy: actorId } }),
+    );
+  }
+
+  async deletePlan(actorId: string, id: string): Promise<OkResult> {
+    const kids = await this.prisma.userStudyPlanEnrollment.count({ where: { studyPlanId: id } });
+
+    if (kids > 0) ERR.conflict("DELETE_BLOCKED_BY_CHILDREN", "Tiene inscriptos");
+
+    await this.tx(actorId, "DELETE", "study_plan", id, {}, (t) => t.studyPlan.delete({ where: { id } }));
 
     return { ok: true };
   }
