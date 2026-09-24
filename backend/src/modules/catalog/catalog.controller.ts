@@ -6,6 +6,8 @@ import {
   CatalogService,
   CareerInput,
   careerSchema,
+  CorrelativeInput,
+  correlativeSchema,
   PlanInput,
   planSchema,
   PlanUpdateInput,
@@ -116,5 +118,23 @@ export class CatalogController {
   @Delete("subjects/:id")
   deleteSubject(@Req() req: Request, @Param("id") id: string) {
     return this.catalog.deleteSubject(req.user.id, id);
+  }
+
+  @Public()
+  @Get("subjects/:id/correlatives")
+  correlatives(@Param("id") id: string) {
+    return this.catalog.listCorrelatives(id);
+  }
+
+  @UseGuards(AdminGuard)
+  @Post("subjects/:id/correlatives")
+  addCorrelative(@Req() req: Request, @Param("id") id: string, @Body() body: CorrelativeInput) {
+    return this.catalog.addCorrelative(req.user.id, id, correlativeSchema.parse(body));
+  }
+
+  @UseGuards(AdminGuard)
+  @Delete("subjects/:id/correlatives/:correlativeId")
+  removeCorrelative(@Req() req: Request, @Param("id") id: string, @Param("correlativeId") correlativeId: string) {
+    return this.catalog.removeCorrelative(req.user.id, id, correlativeId);
   }
 }

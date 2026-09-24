@@ -17,6 +17,8 @@ process.env.ADMIN_SEED_EMAIL ??= "admin@example.com";
 
 const { pagination, paged, listQuerySchema } = await import("../dist/shared/pagination.js");
 
+const { hasPath } = await import("../dist/modules/catalog/correlative-graph.js");
+
 describe("pagination", () => {
   it("defaults page=1 limit=20", () => {
     assert.deepEqual(pagination(listQuerySchema.parse({})), { page: 1, limit: 20, skip: 0 });
@@ -32,5 +34,40 @@ describe("pagination", () => {
 
   it("paged wraps meta", () => {
     assert.deepEqual(paged([1], 100, 2, 20), { data: [1], meta: { page: 2, limit: 20, total: 100 } });
+  });
+});
+
+describe("correlatives BFS (hasPath)", () => {
+  const adj = new Map([
+    ["a", ["b"]],
+    ["b", ["c"]],
+    ["c", []],
+  ]);
+
+  it("finds transitive path", () => {
+    assert.equal(hasPath(adj, "a", "c"), true);
+  });
+
+  it("no path back", () => {
+    assert.equal(hasPath(adj, "c", "a"), false);
+  });
+
+  it("self cycle detected", () => {
+    assert.equal(hasPath(new Map([["a", ["a"]]]), "a", "a"), true);
+  });
+
+  it("indirect cycle: c->a closes loop", () => {
+    assert.equal(
+      hasPath(
+        new Map([
+          ["a", ["b"]],
+          ["b", ["c"]],
+          ["c", ["a"]],
+        ]),
+        "c",
+        "a",
+      ),
+      true,
+    );
   });
 });

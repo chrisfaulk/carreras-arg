@@ -4,6 +4,7 @@ import { z } from "zod";
 import { PrismaService } from "../../prisma.service";
 import { ERR, OkResult } from "../../shared/api-error";
 import { ListQuery, Paged, paged, pagination } from "../../shared/pagination";
+import { hasPath } from "./correlative-graph";
 
 export const universitySchema = z.object({ name: z.string().min(1).max(120) });
 
@@ -32,6 +33,11 @@ export const subjectUpdateSchema = z.object({
   requiresFinal: z.boolean().optional(),
 });
 
+export const correlativeSchema = z.object({
+  correlativeSubjectId: z.string().uuid(),
+  type: z.enum(["PREVIOUS", "CONCURRENT"]),
+});
+
 export type UniversityInput = z.input<typeof universitySchema>;
 
 export type UniversityData = z.infer<typeof universitySchema>;
@@ -55,6 +61,15 @@ export type SubjectData = z.infer<typeof subjectSchema>;
 export type SubjectUpdateInput = z.input<typeof subjectUpdateSchema>;
 
 export type SubjectUpdateData = z.infer<typeof subjectUpdateSchema>;
+
+export type CorrelativeInput = z.input<typeof correlativeSchema>;
+
+export type CorrelativeData = z.infer<typeof correlativeSchema>;
+
+export interface CorrelativeRow {
+  correlativeSubjectId: string;
+  type: "PREVIOUS" | "CONCURRENT";
+}
 
 type JsonField = string | number | boolean | undefined;
 
@@ -391,5 +406,89 @@ export class CatalogService {
     });
 
     return { ok: true };
+  }
+
+  async listCorrelatives(id: string): Promise<Paged<CorrelativeRow>> {
+    const rows = await this.prisma.subjectCorrelative.findMany({
+      where: { subjectId: id },
+      select: { correlativeSubjectId: true, type: true },
+    });
+
+    return { data: rows, meta: { page: 1, limit: rows.length, total: rows.length } };
+  }
+
+  async addCorrelative(actorId: string, id: string, data: CorrelativeData) {
+    if (data.correlativeSubjectId === id) ERR.unprocessable("INVALID_CORRELATIVE", "Sin auto-referencia");
+
+    const [subject, correlative] = await Promise.all([
+      this.prisma.subject.findUnique({ where: { id }, select: { studyPlanId: true } }),
+      this.prisma.subject.findUnique({ where: { id: data.correlativeSubjectId }, select: { studyPlanId: true } }),
+    ]);
+
+    if (!subject || !correlative) ERR.notFound();
+
+    if (subject!.studyPlanId !== correlative!.studyPlanId)
+      ERR.unprocessable("INVALID_CORRELATIVE", "Mismo plan requerido");
+
+    if (await this.reaches(data.correlativeSubjectId, id)) ERR.unprocessable("CYCLIC_CORRELATIVE", "Ciclo detectado");
+
+    try {
+      const row = await this.prisma.subjectCorrelative.create({
+        data: { subjectId: id, correlativeSubjectId: data.correlativeSubjectId, type: data.type },
+      });
+
+      await this.prisma.auditLog.create({
+        data: {
+          actorId,
+          action: "CREATE",
+          entity: "subject_correlative",
+          entityId: id,
+          diffJson: { correlativeSubjectId: data.correlativeSubjectId, type: data.type },
+        },
+      });
+
+      return { id: row.id.toString(), correlativeSubjectId: data.correlativeSubjectId, type: data.type };
+    } catch (error) {
+      if (isDuplicate(error)) ERR.conflict("DUPLICATE", "Correlativa duplicada");
+
+      throw error;
+    }
+  }
+
+  async removeCorrelative(actorId: string, id: string, correlativeId: string): Promise<OkResult> {
+    await this.tx(actorId, "DELETE", "subject_correlative", id, { correlativeSubjectId: correlativeId }, (t) =>
+      t.subjectCorrelative.deleteMany({ where: { subjectId: id, correlativeSubjectId: correlativeId } }),
+    );
+
+    return { ok: true };
+  }
+
+  private async reaches(from: string, target: string): Promise<boolean> {
+    const adj = new Map<string, string[]>();
+    const seen = new Set<string>([from]);
+    const queue = [from];
+
+    while (queue.length > 0) {
+      const cur = queue.shift()!;
+
+      const next = await this.prisma.subjectCorrelative.findMany({
+        where: { subjectId: cur },
+        select: { correlativeSubjectId: true },
+      });
+
+      adj.set(
+        cur,
+        next.map((n) => n.correlativeSubjectId),
+      );
+
+      for (const id of adj.get(cur) ?? []) {
+        if (!seen.has(id)) {
+          seen.add(id);
+          queue.push(id);
+        }
+      }
+    }
+
+    return hasPath(adj, from, target);
   }
 }
