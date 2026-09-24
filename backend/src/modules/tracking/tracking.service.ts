@@ -4,6 +4,7 @@ import { z } from "zod";
 import { PrismaService } from "../../prisma.service";
 import { ERR } from "../../shared/api-error";
 import { lockedEnrollment } from "../../shared/read-models";
+import { checkTransition } from "./attempt-machine";
 
 export const createAttemptSchema = z.object({ subjectId: z.string().uuid() });
 
@@ -12,6 +13,19 @@ export type CreateAttemptInput = z.input<typeof createAttemptSchema>;
 export type CreateAttemptData = z.infer<typeof createAttemptSchema>;
 
 export type VisibleStatus = "NOT_AVAILABLE" | "AVAILABLE" | "PENDING_FINAL" | "IN_PROGRESS" | "PASSED";
+
+export const updateAttemptSchema = z.object({
+  status: z.enum(["IN_PROGRESS", "PENDING_FINAL", "PASSED", "FAILED", "AVAILABLE", "NOT_AVAILABLE"]),
+  finalGrade: z.number().int().min(1).max(10).optional(),
+  termYear: z.number().int().min(1900).max(2100).optional(),
+  term: z.enum(["FIRST", "SECOND"]).optional(),
+  minRegularize: z.number().int().min(1).max(10).optional(),
+  minPromote: z.number().int().min(1).max(10).optional(),
+});
+
+export type UpdateAttemptInput = z.input<typeof updateAttemptSchema>;
+
+export type UpdateAttemptData = z.infer<typeof updateAttemptSchema>;
 
 const PREVIOUS_OK = new Set(["PASSED", "PENDING_FINAL"]);
 
@@ -22,8 +36,11 @@ const attemptSelect = {
   studyPlanEnrollmentId: true,
   subjectId: true,
   status: true,
+  finalGrade: true,
   minRegularize: true,
   minPromote: true,
+  termYear: true,
+  term: true,
 } satisfies Prisma.SubjectAttemptSelect;
 
 @Injectable()
@@ -39,6 +56,73 @@ export class TrackingService {
         data,
       ),
     );
+  }
+
+  updateAttempt(userId: string, attemptId: string, data: UpdateAttemptData) {
+    return this.prisma.withUserContext(userId, (tx) => this.updateAttemptTx(tx, userId, attemptId, data));
+  }
+
+  private async updateAttemptTx(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    attemptId: string,
+    data: UpdateAttemptData,
+  ) {
+    const attempt = await tx.subjectAttempt.findUnique({
+      where: { id: attemptId },
+      select: {
+        ...attemptSelect,
+        enrollment: { select: { id: true, userId: true } },
+        subject: { select: { requiresFinal: true } },
+      },
+    });
+
+    if (!attempt || attempt.enrollment.userId !== userId) ERR.notFound();
+
+    await lockedEnrollment(tx, attempt!.enrollment.id, userId);
+
+    if (attempt!.status !== "IN_PROGRESS" && (data.minRegularize !== undefined || data.minPromote !== undefined))
+      ERR.unprocessable("INVALID_TRANSITION", "Umbrales solo editables en cursada");
+
+    const finals = await tx.finalExam.findMany({ where: { subjectAttemptId: attemptId }, select: { grade: true } });
+
+    const error = checkTransition({
+      from: attempt!.status,
+      to: data.status,
+      requiresFinal: attempt!.subject.requiresFinal,
+      minPromote: data.minPromote ?? attempt!.minPromote,
+      hasApprovedFinal: finals.some((final) => (final.grade ?? 0) >= 4),
+      finalGrade: data.finalGrade,
+    });
+
+    if (error === "FINAL_EXAM_REQUIRED") ERR.unprocessable(error, "Requiere final aprobado");
+
+    if (error === "GRADE_REQUIRED") ERR.unprocessable(error, "Requiere nota final");
+
+    if (error === "GRADE_BELOW_PROMOTE") ERR.unprocessable(error, "Nota menor a promoción");
+
+    if (error) ERR.unprocessable(error, "Transición inválida");
+
+    const status =
+      data.status === "IN_PROGRESS" || data.status === "PENDING_FINAL" || data.status === "PASSED"
+        ? data.status
+        : undefined;
+
+    if (!status) ERR.unprocessable("INVALID_TRANSITION", "Transición inválida");
+
+    const patch: Prisma.SubjectAttemptUpdateInput = { status, updatedBy: userId };
+
+    if (data.finalGrade !== undefined) patch.finalGrade = data.finalGrade;
+
+    if (data.termYear !== undefined) patch.termYear = data.termYear;
+
+    if (data.term !== undefined) patch.term = data.term;
+
+    if (data.minRegularize !== undefined) patch.minRegularize = data.minRegularize;
+
+    if (data.minPromote !== undefined) patch.minPromote = data.minPromote;
+
+    return tx.subjectAttempt.update({ where: { id: attemptId }, data: patch, select: attemptSelect });
   }
 
   private async createAttemptTx(
