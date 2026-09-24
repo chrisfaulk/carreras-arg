@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, UseGuards 
 import type { Request } from "express";
 import { RawListQuery, listQuerySchema } from "../../shared/pagination";
 import { AdminGuard, Public } from "../identity/guards";
-import { CatalogService, UniversityInput, universitySchema } from "./catalog.service";
+import { CatalogService, CareerInput, careerSchema, UniversityInput, universitySchema } from "./catalog.service";
 
 @Controller()
 export class CatalogController {
@@ -30,5 +30,29 @@ export class CatalogController {
   @Delete("universities/:id")
   deleteUniversity(@Req() req: Request, @Param("id") id: string) {
     return this.catalog.deleteUniversity(req.user.id, id);
+  }
+
+  @Public()
+  @Get("careers")
+  careers(@Query() query: RawListQuery) {
+    return this.catalog.listCareers(listQuerySchema.parse(query));
+  }
+
+  @UseGuards(AdminGuard)
+  @Post("careers")
+  createCareer(@Req() req: Request, @Body() body: CareerInput) {
+    return this.catalog.createCareer(req.user.id, careerSchema.parse(body));
+  }
+
+  @UseGuards(AdminGuard)
+  @Put("careers/:id")
+  updateCareer(@Req() req: Request, @Param("id") id: string, @Body() body: UniversityInput) {
+    return this.catalog.updateCareer(req.user.id, id, universitySchema.parse(body));
+  }
+
+  @UseGuards(AdminGuard)
+  @Delete("careers/:id")
+  deleteCareer(@Req() req: Request, @Param("id") id: string) {
+    return this.catalog.deleteCareer(req.user.id, id);
   }
 }

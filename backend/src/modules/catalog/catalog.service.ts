@@ -7,9 +7,15 @@ import { ListQuery, Paged, paged, pagination } from "../../shared/pagination";
 
 export const universitySchema = z.object({ name: z.string().min(1).max(120) });
 
+export const careerSchema = universitySchema.extend({ universityId: z.string().uuid() });
+
 export type UniversityInput = z.input<typeof universitySchema>;
 
 export type UniversityData = z.infer<typeof universitySchema>;
+
+export type CareerInput = z.input<typeof careerSchema>;
+
+export type CareerData = z.infer<typeof careerSchema>;
 
 async function audit(
   tx: Prisma.TransactionClient,
@@ -109,6 +115,75 @@ export class CatalogService {
     if (kids > 0) ERR.conflict("DELETE_BLOCKED_BY_CHILDREN", "Tiene carreras asociadas");
 
     await this.tx(actorId, "DELETE", "university", id, {}, (t) => t.university.delete({ where: { id } }));
+
+    return { ok: true };
+  }
+
+  async listCareers(query: ListQuery) {
+    const { page, limit, skip } = pagination(query);
+    const where: Prisma.CareerWhereInput = {};
+
+    if (query.universityId) where.universityId = query.universityId;
+
+    if (query.q) where.name = { startsWith: query.q, mode: "insensitive" };
+
+    return this.prisma.$transaction(async (t) => {
+      const [data, total] = await Promise.all([
+        t.career.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { name: "asc" },
+          select: { id: true, name: true, universityId: true },
+        }),
+        t.career.count({ where }),
+      ]);
+
+      return paged(data, total, page, limit);
+    });
+  }
+
+  async createCareer(actorId: string, data: CareerData) {
+    try {
+      const row = await this.prisma.career.create({
+        data: { name: data.name, universityId: data.universityId, createdBy: actorId },
+        select: { id: true, name: true, universityId: true },
+      });
+
+      await this.prisma.auditLog.create({
+        data: {
+          actorId,
+          action: "CREATE",
+          entity: "career",
+          entityId: row.id,
+          diffJson: { name: data.name, universityId: data.universityId },
+        },
+      });
+
+      return row;
+    } catch (error) {
+      if (isDuplicate(error)) ERR.conflict("DUPLICATE", "Carrera duplicada en esa universidad");
+
+      throw error;
+    }
+  }
+
+  updateCareer(actorId: string, id: string, data: UniversityData) {
+    return this.tx(actorId, "UPDATE", "career", id, { name: data.name }, (t) =>
+      t.career.update({
+        where: { id },
+        data: { name: data.name, updatedBy: actorId },
+        select: { id: true, name: true, universityId: true },
+      }),
+    );
+  }
+
+  async deleteCareer(actorId: string, id: string): Promise<OkResult> {
+    const kids = await this.prisma.studyPlan.count({ where: { careerId: id } });
+
+    if (kids > 0) ERR.conflict("DELETE_BLOCKED_BY_CHILDREN", "Tiene planes asociados");
+
+    await this.tx(actorId, "DELETE", "career", id, {}, (t) => t.career.delete({ where: { id } }));
 
     return { ok: true };
   }
