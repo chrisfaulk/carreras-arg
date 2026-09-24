@@ -2,7 +2,7 @@
 
 Portal centralizado para estudiantes de universidades argentinas: te anotas a planes de estudio y el sistema calcula automáticamente qué materias podes cursar segun correlativas, sin revisar PDFs cada cuatrimestre.
 
-> **Estado:** en construcción (ver [docs/roadmap.md](./docs/roadmap.md)). Open source, contribuciones bienvenidas.
+> **Estado:** en construcción (ver [.docs/roadmap.md](./.docs/roadmap.md)). Open source, contribuciones bienvenidas.
 
 ## Cómo luce terminado
 
@@ -14,7 +14,7 @@ Portal centralizado para estudiantes de universidades argentinas: te anotas a pl
 
 ## Stack
 
-**NestJS (TS) y Next.js 14 App Router (TS) y Prisma y PostgreSQL** con monorepo `pnpm` y `Turborepo`. API solo `PUT` para mutar (prohibido `PATCH`). Ver [docs/architecture.md](./docs/architecture.md).
+**NestJS (TS) y Next.js 14 App Router (TS) y Prisma y PostgreSQL** con monorepo `pnpm` y `Turborepo`. API solo `PUT` para mutar (prohibido `PATCH`). Ver [.docs/architecture.md](./.docs/architecture.md).
 
 ## Quickstart (cuando exista código)
 
@@ -29,31 +29,32 @@ pnpm dev
 
 | Doc | Que es |
 |-----|--------|
-| [docs/README.md](./docs/README.md) | Indice de toda la docs |
-| [docs/specification.md](./docs/specification.md) | Reglas de negocio |
-| [docs/architecture.md](./docs/architecture.md) | Stack y modulos DDD |
-| [docs/database.md](./docs/database.md) | Tablas, ERD, indices |
-| [docs/api.md](./docs/api.md) | Contratos REST (solo PUT) |
-| [docs/auth.md](./docs/auth.md) | Auth y sesiones |
-| [docs/privacy.md](./docs/privacy.md) | Privacidad y borrado |
-| [docs/legal/privacy.md](./docs/legal/privacy.md) | Política de privacidad (Ley 25.326) |
-| [docs/legal/terms.md](./docs/legal/terms.md) | Términos y condiciones |
-| [docs/legal/cookies.md](./docs/legal/cookies.md) | Política de cookies (solo sesión) |
-| [docs/standards.md](./docs/standards.md) | Cómo contribuir |
-| [docs/roadmap.md](./docs/roadmap.md) | Fases y checkpoints |
-| [docs/ui-ux.md](./docs/ui-ux.md) | Design system y UX |
-| [docs/seo.md](./docs/seo.md) | Checklist SEO |
+| [.docs/README.md](./.docs/README.md) | Indice de toda la docs |
+| [.docs/specification.md](./.docs/specification.md) | Reglas de negocio |
+| [.docs/architecture.md](./.docs/architecture.md) | Stack y modulos DDD |
+| [.docs/database.md](./.docs/database.md) | Tablas, ERD, indices |
+| [.docs/api.md](./.docs/api.md) | Contratos REST (solo PUT) |
+| [.docs/auth.md](./.docs/auth.md) | Auth y sesiones |
+| [.docs/privacy.md](./.docs/privacy.md) | Privacidad y borrado |
+| [.docs/legal/privacy.md](./.docs/legal/privacy.md) | Política de privacidad (Ley 25.326) |
+| [.docs/legal/terms.md](./.docs/legal/terms.md) | Términos y condiciones |
+| [.docs/legal/cookies.md](./.docs/legal/cookies.md) | Política de cookies (solo sesión) |
+| [.docs/standards.md](./.docs/standards.md) | Cómo contribuir |
+| [.docs/roadmap.md](./.docs/roadmap.md) | Fases y checkpoints |
+| [.docs/ui-ux.md](./.docs/ui-ux.md) | Design system y UX |
+| [.docs/pages.md](./.docs/pages.md) | Inventario de rutas y composición por page |
+| [.docs/seo.md](./.docs/seo.md) | Checklist SEO |
 
 ## Contribuir
 
-1. Lee [docs/standards.md](./docs/standards.md) (Oxlint, ESLint y Prettier, commits `type(module): msg`, sin comentarios, DTO projections, prohibido `PATCH`).
-2. Elige un checkpoint de [docs/roadmap.md](./docs/roadmap.md).
+1. Lee [.docs/standards.md](./.docs/standards.md) (Oxlint, ESLint y Prettier, commits `type(module): msg`, sin comentarios, DTO projections, prohibido `PATCH`).
+2. Elige un checkpoint de [.docs/roadmap.md](./.docs/roadmap.md).
 3. PR chico, un checkpoint por PR. Tests caja negra solo para logica critica (agregado, disponibilidad, cierre, promedios).
 
 ## Licencia
 
-MIT. código público, sin exponer secretos. Todo en env vars (ver [docs/architecture.md](./docs/architecture.md)). Ver `LICENSE` y [docs/legal/terms.md](./docs/legal/terms.md) sección 7 para contribuciones y contenido de terceros.
+MIT. código público, sin exponer secretos. Todo en env vars (ver [.docs/architecture.md](./.docs/architecture.md)). Ver `LICENSE` y [.docs/legal/terms.md](./.docs/legal/terms.md) sección 7 para contribuciones y contenido de terceros.
 
 ## Roadmap
 
-MVP hacia Hardening hacia v2 (grupos, opiniones, archivos async). Detalle granular en [docs/roadmap.md](./docs/roadmap.md).
+MVP hacia Hardening hacia v2 (grupos, opiniones, archivos async). Detalle granular en [.docs/roadmap.md](./.docs/roadmap.md).
