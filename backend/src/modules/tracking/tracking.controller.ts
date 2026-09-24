@@ -1,5 +1,6 @@
-import { Body, Controller, Param, Post, Put, Req } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Put, Query, Req } from "@nestjs/common";
 import type { Request } from "express";
+import { RawListQuery, listQuerySchema } from "../../shared/pagination";
 import {
   CreateAttemptInput,
   TrackingService,
@@ -25,5 +26,15 @@ export class TrackingController {
   @Put("attempts/:id/close")
   closeAttempt(@Req() req: Request, @Param("id") id: string) {
     return this.tracking.closeAttempt(req.user.id, id);
+  }
+
+  @Get("study-plans/:id/subjects")
+  planSubjects(@Req() req: Request, @Param("id") id: string, @Query() query: RawListQuery) {
+    return this.tracking.planSubjects(req.user.id, id, listQuerySchema.parse(query));
+  }
+
+  @Get("enrollments/:id/cursables")
+  cursables(@Req() req: Request, @Param("id") id: string, @Query() query: RawListQuery) {
+    return this.tracking.cursables(req.user.id, id, listQuerySchema.parse(query));
   }
 }

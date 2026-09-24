@@ -7,7 +7,10 @@ export interface RawListQuery {
   universityId?: string;
   careerId?: string;
   studyPlanId?: string;
+  status?: string;
 }
+
+export const visibleStatusSchema = z.enum(["NOT_AVAILABLE", "AVAILABLE", "PENDING_FINAL", "IN_PROGRESS", "PASSED"]);
 
 export const listQuerySchema = z.object({
   page: z.coerce
@@ -24,6 +27,7 @@ export const listQuerySchema = z.object({
   universityId: z.string().uuid().optional(),
   careerId: z.string().uuid().optional(),
   studyPlanId: z.string().uuid().optional(),
+  status: visibleStatusSchema.optional(),
 });
 
 export type ListQuery = z.infer<typeof listQuerySchema>;

@@ -6,7 +6,8 @@ import { ERR } from "../../shared/api-error";
 import { lockedEnrollment } from "../../shared/read-models";
 import { checkTransition } from "./attempt-machine";
 import { closeAttempt } from "./attempt-closer";
-import { visibleStatus, VisibleStatus } from "./availability-reader";
+import { insufficientCorrelatives, visibleStatus, CorrelativeRow, VisibleStatus } from "./availability-reader";
+import { ListQuery, paged } from "../../shared/pagination";
 
 export type { VisibleStatus } from "./availability-reader";
 
@@ -62,6 +63,94 @@ export class TrackingService {
 
   closeAttempt(userId: string, attemptId: string) {
     return this.prisma.withUserContext(userId, (tx) => this.closeAttemptTx(tx, userId, attemptId));
+  }
+
+  planSubjects(userId: string, planId: string, query: ListQuery) {
+    return this.prisma.withUserContext(userId, (tx) => this.planSubjectsTx(tx, userId, planId, query));
+  }
+
+  cursables(userId: string, enrollmentId: string, query: ListQuery) {
+    return this.prisma.withUserContext(userId, (tx) => this.cursablesTx(tx, userId, enrollmentId, query));
+  }
+
+  private async planSubjectsTx(tx: Prisma.TransactionClient, userId: string, planId: string, query: ListQuery) {
+    const plan = await tx.studyPlan.findUnique({ where: { id: planId }, select: { id: true } });
+
+    if (!plan) ERR.notFound();
+
+    const enrollment = await tx.userStudyPlanEnrollment.findUnique({
+      where: { userId_studyPlanId: { userId, studyPlanId: planId } },
+      select: { id: true },
+    });
+
+    if (!enrollment) ERR.notFound();
+
+    // ponytail: subjects per plan fit in memory; move q/status to DB when plans grow past hundreds
+    const [subjects, attempts] = await Promise.all([
+      tx.subject.findMany({
+        where: { studyPlanId: planId },
+        orderBy: { name: "asc" },
+        select: { id: true, studyPlanId: true, name: true, isElective: true, requiresFinal: true },
+      }),
+      tx.subjectAttempt.findMany({
+        where: { studyPlanEnrollmentId: enrollment!.id, annulledAt: null },
+        select: { subjectId: true, status: true },
+      }),
+    ]);
+
+    const correlatives = await tx.subjectCorrelative.findMany({
+      where: { subjectId: { in: subjects.map((subject) => subject.id) } },
+      select: { subjectId: true, correlativeSubjectId: true, type: true },
+    });
+
+    const bySubject = new Map<string, CorrelativeRow[]>();
+
+    for (const correlative of correlatives) {
+      const current = bySubject.get(correlative.subjectId);
+
+      if (current) current.push(correlative);
+      else bySubject.set(correlative.subjectId, [correlative]);
+    }
+
+    const prefix = query.q?.toLowerCase();
+    const rows = [];
+
+    for (const subject of subjects) {
+      if (prefix && !subject.name.toLowerCase().startsWith(prefix)) continue;
+
+      const status = visibleStatus(attempts, bySubject.get(subject.id) ?? [], subject.id);
+
+      if (query.status && status !== query.status) continue;
+
+      rows.push({
+        ...subject,
+        status,
+        insufficientCorrelatives: insufficientCorrelatives(attempts, bySubject.get(subject.id) ?? [], subject.id),
+      });
+    }
+
+    return paged(
+      rows.slice((query.page - 1) * query.limit, query.page * query.limit),
+      rows.length,
+      query.page,
+      query.limit,
+    );
+  }
+
+  private async cursablesTx(tx: Prisma.TransactionClient, userId: string, enrollmentId: string, query: ListQuery) {
+    const enrollment = await tx.userStudyPlanEnrollment.findUnique({
+      where: { id: enrollmentId },
+      select: { id: true, userId: true, studyPlanId: true },
+    });
+
+    if (!enrollment || enrollment.userId !== userId) ERR.notFound();
+
+    const page = await this.planSubjectsTx(tx, userId, enrollment!.studyPlanId, {
+      ...query,
+      status: "AVAILABLE",
+    });
+
+    return page;
   }
 
   private async closeAttemptTx(tx: Prisma.TransactionClient, userId: string, attemptId: string) {
