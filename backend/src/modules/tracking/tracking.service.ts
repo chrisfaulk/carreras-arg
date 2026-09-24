@@ -7,6 +7,7 @@ import { lockedEnrollment } from "../../shared/read-models";
 import { checkTransition } from "./attempt-machine";
 import { closeAttempt } from "./attempt-closer";
 import { insufficientCorrelatives, visibleStatus, CorrelativeRow, VisibleStatus } from "./availability-reader";
+import { effectiveGrade } from "../evaluation/effective-grade";
 import { ListQuery, paged } from "../../shared/pagination";
 
 export type { VisibleStatus } from "./availability-reader";
@@ -175,13 +176,12 @@ export class TrackingService {
       select: { grade: true, retakes: { select: { grade: true } } },
     });
 
-    const effectiveGrades = instances.map((instance) => {
-      const grades = [instance.grade, ...instance.retakes.map((retake) => retake.grade)].filter(
-        (grade): grade is number => grade !== null,
-      );
-
-      return grades.length > 0 ? Math.max(...grades) : null;
-    });
+    const effectiveGrades = instances.map((instance) =>
+      effectiveGrade(
+        instance.grade,
+        instance.retakes.map((retake) => retake.grade),
+      ),
+    );
 
     const closed = closeAttempt({
       effectiveGrades,

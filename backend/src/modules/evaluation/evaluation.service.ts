@@ -29,6 +29,15 @@ export type InstanceUpdateInput = z.input<typeof instanceUpdateSchema>;
 
 export type InstanceUpdateData = z.infer<typeof instanceUpdateSchema>;
 
+export const retakeSchema = z.object({
+  grade: z.number().int().min(1).max(10),
+  examDate: z.string().date().optional(),
+});
+
+export type RetakeInput = z.input<typeof retakeSchema>;
+
+export type RetakeData = z.infer<typeof retakeSchema>;
+
 const instanceSelect = {
   id: true,
   subjectAttemptId: true,
@@ -38,6 +47,13 @@ const instanceSelect = {
   examDate: true,
   sortOrder: true,
 } satisfies Prisma.EvaluationInstanceSelect;
+
+const retakeSelect = {
+  id: true,
+  evaluationInstanceId: true,
+  grade: true,
+  examDate: true,
+} satisfies Prisma.EvaluationRetakeSelect;
 
 @Injectable()
 export class EvaluationService {
@@ -75,6 +91,47 @@ export class EvaluationService {
       await lockedEnrollment(tx, instance!.attempt.enrollment.id, userId);
       await tx.evaluationRetake.deleteMany({ where: { evaluationInstanceId: instanceId } });
       await tx.evaluationInstance.delete({ where: { id: instanceId } });
+
+      return { ok: true };
+    });
+  }
+
+  createRetake(userId: string, instanceId: string, data: RetakeData) {
+    return this.prisma.withUserContext(userId, async (tx) => {
+      const instance = await tx.evaluationInstance.findUnique({
+        where: { id: instanceId },
+        select: { id: true, attempt: { select: { id: true, enrollment: { select: { id: true, userId: true } } } } },
+      });
+
+      if (!instance || instance.attempt.enrollment.userId !== userId) ERR.notFound();
+
+      await lockedEnrollment(tx, instance!.attempt.enrollment.id, userId);
+
+      return tx.evaluationRetake.create({
+        data: {
+          evaluationInstanceId: instanceId,
+          grade: data.grade,
+          examDate: data.examDate ? new Date(data.examDate) : undefined,
+        },
+        select: retakeSelect,
+      });
+    });
+  }
+
+  deleteRetake(userId: string, retakeId: string): Promise<OkResult> {
+    return this.prisma.withUserContext(userId, async (tx) => {
+      const retake = await tx.evaluationRetake.findUnique({
+        where: { id: retakeId },
+        select: {
+          id: true,
+          instance: { select: { attempt: { select: { enrollment: { select: { id: true, userId: true } } } } } },
+        },
+      });
+
+      if (!retake || retake.instance.attempt.enrollment.userId !== userId) ERR.notFound();
+
+      await lockedEnrollment(tx, retake!.instance.attempt.enrollment.id, userId);
+      await tx.evaluationRetake.delete({ where: { id: retakeId } });
 
       return { ok: true };
     });

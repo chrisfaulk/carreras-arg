@@ -4,8 +4,10 @@ import {
   EvaluationService,
   InstanceInput,
   InstanceUpdateInput,
+  RetakeInput,
   instanceSchema,
   instanceUpdateSchema,
+  retakeSchema,
 } from "./evaluation.service";
 
 @Controller()
@@ -30,5 +32,15 @@ export class EvaluationController {
   @Delete("instances/:id")
   deleteInstance(@Req() req: Request, @Param("id") id: string) {
     return this.evaluation.deleteInstance(req.user.id, id);
+  }
+
+  @Post("instances/:id/retakes")
+  createRetake(@Req() req: Request, @Param("id") id: string, @Body() body: RetakeInput) {
+    return this.evaluation.createRetake(req.user.id, id, retakeSchema.parse(body));
+  }
+
+  @Delete("retakes/:id")
+  deleteRetake(@Req() req: Request, @Param("id") id: string) {
+    return this.evaluation.deleteRetake(req.user.id, id);
   }
 }
