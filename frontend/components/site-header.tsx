@@ -4,9 +4,12 @@ import Button from "./ui/button";
 import { Container } from "./container";
 import { getSession } from "@/features/session/get-session";
 import LogoutButton from "@/features/session/logout-button";
+import { getTheme } from "@/features/theme/theme";
+import ThemeToggle from "@/features/theme/theme-toggle";
 
 export default async function SiteHeader({ className }: { className?: string }) {
   const session = await getSession();
+  const theme = await getTheme();
 
   return (
     <header className={cx("sticky top-0 z-40 border-b border-border bg-bg backdrop-blur", className)}>
@@ -38,6 +41,7 @@ export default async function SiteHeader({ className }: { className?: string }) 
                 </Button>
               </>
             )}
+            <ThemeToggle value={theme ?? "system"} />
           </p>
         </nav>
       </Container>

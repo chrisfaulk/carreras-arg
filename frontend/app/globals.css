@@ -2,7 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+:root,
+html.light {
   --spacing-1: 0.25rem;
   --spacing-2: 0.5rem;
   --spacing-3: 0.75rem;
@@ -70,6 +71,31 @@
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
     --shadow-md: 0 4px 24px rgb(0 0 0 / 0.5);
   }
+}
+
+html.dark {
+  --color-bg: #0a0a0a;
+  --color-surface: #171717;
+  --color-fg: #fafafa;
+  --color-muted: #a3a3a3;
+  --color-border: #262626;
+  --color-ring: #fafafa;
+  --color-primary: #38bdf8;
+  --color-on-primary: #0a0a0a;
+  --color-accent: #7dd3fc;
+  --color-on-accent: #0a0a0a;
+  --color-danger: #f87171;
+  --color-on-danger: #0a0a0a;
+  --color-passed: #fafafa;
+  --color-on-passed: #0a0a0a;
+  --color-progress: #93c5fd;
+  --color-on-progress: #0a0a0a;
+  --color-pending: #fbbf24;
+  --color-on-pending: #0a0a0a;
+  --color-available: #86efac;
+  --color-on-available: #0a0a0a;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 4px 24px rgb(0 0 0 / 0.5);
 }
 
 @layer base {

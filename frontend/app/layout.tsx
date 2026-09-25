@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import localFont from "next/font/local";
 import { clsx as cx } from "clsx";
 import CookieBanner from "@/features/cookies/cookie-banner";
@@ -30,8 +31,14 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const theme = cookies().get("theme")?.value;
+
   return (
-    <html lang="es" className={inter.className}>
+    <html
+      lang="es"
+      className={cx(inter.className, theme === "dark" ? "dark" : theme === "light" ? "light" : undefined)}
+      style={{ colorScheme: theme === "dark" ? "dark" : theme === "light" ? "light" : "light dark" }}
+    >
       <body className={cx("flex min-h-screen flex-col")}>
         <SiteHeader />
         <Providers>
