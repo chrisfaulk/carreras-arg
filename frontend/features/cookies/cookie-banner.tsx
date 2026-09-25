@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
 import { clsx as cx } from "clsx";
 
 const KEY = "cookies-dismissed";
 
-function readDismissed(): boolean {
+const listeners = new Set<() => void>();
+
+function read(): boolean {
   try {
     return localStorage.getItem(KEY) !== null;
   } catch {
@@ -13,20 +15,40 @@ function readDismissed(): boolean {
   }
 }
 
+function emit(): void {
+  for (const listener of listeners) listener();
+}
+
+function subscribe(emitFn: () => void): () => void {
+  listeners.add(emitFn);
+
+  return () => {
+    listeners.delete(emitFn);
+  };
+}
+
+function snapshot(): boolean {
+  return read();
+}
+
+function serverSnapshot(): boolean {
+  return true;
+}
+
+function dismiss(): void {
+  try {
+    localStorage.setItem(KEY, "1");
+  } catch {
+    /* sin almacenamiento, se cierra igual */
+  }
+
+  emit();
+}
+
 export default function CookieBanner({ className }: { className?: string }) {
-  const [dismissed, setDismissed] = useState<boolean>(readDismissed);
+  const dismissed = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
 
   if (dismissed) return null;
-
-  function close(): void {
-    try {
-      localStorage.setItem(KEY, "1");
-    } catch {
-      /* sin almacenamiento, se cierra igual */
-    }
-
-    setDismissed(true);
-  }
 
   return (
     <div
@@ -44,7 +66,7 @@ export default function CookieBanner({ className }: { className?: string }) {
         </p>
         <button
           type="button"
-          onClick={close}
+          onClick={dismiss}
           className="w-fit shrink-0 rounded-full border border-border px-3 py-1.5 text-sm font-medium text-fg transition-colors hover:border-primary"
         >
           Cerrar aviso
