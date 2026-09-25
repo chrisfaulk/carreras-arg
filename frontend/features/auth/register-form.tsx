@@ -126,7 +126,7 @@ export default function RegisterForm({ className }: { className?: string }) {
       />
 
       <Button variant="primary" disabled={pending} onClick={() => void register()} className="w-full">
-        Crear cuenta
+        Registrarse
       </Button>
     </div>
   );

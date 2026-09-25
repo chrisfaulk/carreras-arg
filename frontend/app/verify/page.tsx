@@ -30,7 +30,7 @@ export default async function VerifyPage({ searchParams }: { searchParams: { tok
             title="Falta el token"
             hint="El link de verificación no trae token."
             ctaHref="/register"
-            ctaLabel="Volver a crear cuenta"
+            ctaLabel="Volver a Registrarse"
           />
         </Container>
       </main>
