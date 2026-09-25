@@ -17,7 +17,7 @@ export default function ThemeToggle({ initial, className }: { initial: ThemeValu
       onClick={() => setThemeValue(next)}
       aria-label={value === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
       title={value === "dark" ? "Modo claro" : "Modo oscuro"}
-      className={cx("rounded-md px-3 py-1.5 text-sm text-muted transition-colors hover:text-primary", className)}
+      className={cx("rounded-full px-3 py-1.5 text-sm text-muted transition-colors hover:text-primary", className)}
     >
       <HugeiconsIcon icon={value === "dark" ? Sun03Icon : Moon02Icon} size={16} />
     </button>

@@ -17,7 +17,7 @@ export default function Skeleton({
           key={i}
           aria-hidden="true"
           className={cx(
-            "shimmer h-4 rounded-sm bg-border",
+            "shimmer h-4 rounded-md bg-border",
             i === 0 && "w-2/5",
             i > 0 && i !== lines - 1 && "w-full",
             i === lines - 1 && "w-3/5",
