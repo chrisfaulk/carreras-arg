@@ -30,6 +30,12 @@ export class CatalogController {
     return this.catalog.listUniversities(listQuerySchema.parse(query));
   }
 
+  @Public()
+  @Get("universities/:id")
+  university(@Param("id") id: string) {
+    return this.catalog.getUniversity(id);
+  }
+
   @UseGuards(AdminGuard)
   @Post("universities")
   createUniversity(@Req() req: Request, @Body() body: UniversityInput) {
@@ -54,6 +60,12 @@ export class CatalogController {
     return this.catalog.listCareers(listQuerySchema.parse(query));
   }
 
+  @Public()
+  @Get("careers/:id")
+  career(@Param("id") id: string) {
+    return this.catalog.getCareer(id);
+  }
+
   @UseGuards(AdminGuard)
   @Post("careers")
   createCareer(@Req() req: Request, @Body() body: CareerInput) {
@@ -76,6 +88,12 @@ export class CatalogController {
   @Get("study-plans")
   plans(@Query() query: RawListQuery) {
     return this.catalog.listPlans(listQuerySchema.parse(query));
+  }
+
+  @Public()
+  @Get("study-plans/:id")
+  plan(@Param("id") id: string) {
+    return this.catalog.getPlan(id);
   }
 
   @UseGuards(AdminGuard)

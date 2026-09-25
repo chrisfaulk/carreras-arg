@@ -142,6 +142,17 @@ export class CatalogService {
     });
   }
 
+  async getUniversity(id: string) {
+    const row = await this.prisma.university.findUnique({
+      where: { id },
+      select: { id: true, name: true },
+    });
+
+    if (!row) ERR.notFound();
+
+    return row;
+  }
+
   async createUniversity(actorId: string, data: UniversityData) {
     try {
       const row = await this.prisma.university.create({
@@ -211,6 +222,17 @@ export class CatalogService {
     });
   }
 
+  async getCareer(id: string) {
+    const row = await this.prisma.career.findUnique({
+      where: { id },
+      select: { id: true, name: true, university: { select: { id: true, name: true } } },
+    });
+
+    if (!row) ERR.notFound();
+
+    return row;
+  }
+
   async createCareer(actorId: string, data: CareerData) {
     try {
       const row = await this.prisma.career.create({
@@ -274,6 +296,22 @@ export class CatalogService {
 
       return paged(data, total, page, limit);
     });
+  }
+
+  async getPlan(id: string) {
+    const row = await this.prisma.studyPlan.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        year: true,
+        requiredElectives: true,
+        career: { select: { id: true, name: true, university: { select: { id: true, name: true } } } },
+      },
+    });
+
+    if (!row) ERR.notFound();
+
+    return row;
   }
 
   async createPlan(actorId: string, data: PlanData) {
