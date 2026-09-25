@@ -4,10 +4,11 @@ import { PrismaService } from "../../prisma.service";
 import { AdminGuard, AuthGuard } from "./guards";
 import { IdentityController } from "./identity.controller";
 import { IdentityService } from "./identity.service";
+import { PrivacyCronService } from "./privacy-cron.service";
 
 @Module({
   controllers: [IdentityController],
-  providers: [IdentityService, PrismaService, { provide: APP_GUARD, useClass: AuthGuard }],
+  providers: [IdentityService, PrivacyCronService, PrismaService, { provide: APP_GUARD, useClass: AuthGuard }],
   exports: [IdentityService],
 })
 export class IdentityModule implements OnModuleInit {

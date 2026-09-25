@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Put, Query, Req, Res } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Post, Put, Query, Req, Res } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import type { Request, Response } from "express";
 import { Public } from "./guards";
@@ -105,6 +105,25 @@ export class IdentityController {
   @Put("users/me")
   updateMe(@Req() req: Request, @Body() body: UpdateMeInput) {
     return this.identity.updateMe(req.user.id, updateMeSchema.parse(body));
+  }
+
+  @Get("users/me")
+  me(@Req() req: Request) {
+    return this.identity.me(req.user.id);
+  }
+
+  @Get("users/me/export")
+  exportMe(@Req() req: Request) {
+    return this.identity.exportMe(req.user.id);
+  }
+
+  @Delete("users/me")
+  async deleteMe(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const out = await this.identity.deleteMe(req.user.id);
+
+    clearSession(res);
+
+    return out;
   }
 
   @Public()

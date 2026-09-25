@@ -1,6 +1,6 @@
 # Política de privacidad
 
-> Vigencia: 2026-09-23. Version 1.1. Historial de cambios al final.
+> Vigencia: 2026-09-25. Version 1.2. Historial de cambios al final.
 
 ## 1. Responsable
 
@@ -36,7 +36,7 @@ No se solicita DNI, legajo, domicilio, telefono ni datos de pago. `display_name`
 ## 4. Conservación y retención
 
 - Cuenta activa: mientras el usuario mantenga la cuenta.
-- Borrado: `DELETE /users/me` anonimiza `created_by`/`updated_by`, revoca `refresh_token` y elimina `subject_attempt` en cascada logica. Soft delete 30 dias, luego hard delete. Ver `privacy.md` de implementación y `database.md`.
+- Borrado: `DELETE /users/me` hace soft delete (`user.deleted_at = now()`), anonimiza `created_by`/`updated_by`, revoca `refresh_token` y bloquea login. Enrollments, attempts, evaluaciones y finales se conservan 30 días y luego se eliminan con hard delete diario. Ver `privacy.md` de implementación y `database.md`.
 - Export: `GET /users/me/export` entrega JSON con enrollments y attempts.
 - Logs: nunca contienen PII ni `password_hash`/`token_hash`.
 
@@ -72,3 +72,4 @@ Cambios se publican con nueva fecha de vigencia y entrada en changelog. Cambios 
 
 - 1.0 (2026-09-22): version inicial.
 - 1.1 (2026-09-23): corrige endpoint de perfil a `PUT /users/me`.
+- 1.2 (2026-09-25): aclara borrado: soft delete conserva datos 30 días, luego hard delete.

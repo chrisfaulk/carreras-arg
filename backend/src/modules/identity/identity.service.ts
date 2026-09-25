@@ -62,6 +62,12 @@ export interface Session {
   refresh: string;
 }
 
+export const PURGE_AFTER_DAYS = 30;
+
+export function purgeCutoff(now: Date = new Date()): Date {
+  return new Date(now.getTime() - PURGE_AFTER_DAYS * 24 * 60 * 60 * 1000);
+}
+
 export interface GoogleSession extends Session {
   userId: string;
 }
@@ -270,12 +276,160 @@ export class IdentityService {
     return { ok: true };
   }
 
+  async me(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, username: true, email: true, displayName: true, isPublic: true },
+    });
+
+    if (!user) ERR.notFound();
+
+    return user;
+  }
+
   async updateMe(userId: string, data: UpdateMeData) {
     return this.prisma.user.update({
       where: { id: userId },
       data: { displayName: data.displayName, isPublic: data.isPublic },
       select: { id: true, username: true, email: true, displayName: true, isPublic: true },
     });
+  }
+
+  async deleteMe(userId: string): Promise<OkResult> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, deletedAt: true },
+    });
+
+    if (!user) ERR.notFound();
+
+    if (user!.deletedAt) return { ok: true };
+
+    const now = new Date();
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: userId }, data: { deletedAt: now } }),
+      this.prisma.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: now },
+      }),
+      this.prisma.university.updateMany({ where: { createdBy: userId }, data: { createdBy: null } }),
+      this.prisma.university.updateMany({ where: { updatedBy: userId }, data: { updatedBy: null } }),
+      this.prisma.career.updateMany({ where: { createdBy: userId }, data: { createdBy: null } }),
+      this.prisma.career.updateMany({ where: { updatedBy: userId }, data: { updatedBy: null } }),
+      this.prisma.studyPlan.updateMany({ where: { createdBy: userId }, data: { createdBy: null } }),
+      this.prisma.studyPlan.updateMany({ where: { updatedBy: userId }, data: { updatedBy: null } }),
+      this.prisma.subject.updateMany({ where: { createdBy: userId }, data: { createdBy: null } }),
+      this.prisma.subject.updateMany({ where: { updatedBy: userId }, data: { updatedBy: null } }),
+      this.prisma.userStudyPlanEnrollment.updateMany({
+        where: { userId },
+        data: { createdBy: null, updatedBy: null },
+      }),
+      this.prisma.subjectAttempt.updateMany({
+        where: { enrollment: { userId } },
+        data: { createdBy: null, updatedBy: null },
+      }),
+      this.prisma.evaluationInstance.updateMany({
+        where: { attempt: { enrollment: { userId } } },
+        data: { createdBy: null, updatedBy: null },
+      }),
+      this.prisma.finalExam.updateMany({
+        where: { attempt: { enrollment: { userId } } },
+        data: { createdBy: null, updatedBy: null },
+      }),
+    ]);
+
+    return { ok: true };
+  }
+
+  async exportMe(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        displayName: true,
+        isPublic: true,
+        isEmailVerified: true,
+        acceptedPrivacyAt: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) ERR.notFound();
+
+    const enrollments = await this.prisma.userStudyPlanEnrollment.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        createdAt: true,
+        studyPlan: {
+          select: {
+            id: true,
+            year: true,
+            requiredElectives: true,
+            career: { select: { name: true, university: { select: { name: true } } } },
+          },
+        },
+        attempts: {
+          select: {
+            id: true,
+            status: true,
+            finalGrade: true,
+            minRegularize: true,
+            minPromote: true,
+            termYear: true,
+            term: true,
+            annulledAt: true,
+            createdAt: true,
+            subject: { select: { id: true, name: true, isElective: true, requiresFinal: true } },
+            instances: {
+              select: {
+                id: true,
+                type: true,
+                customTypeName: true,
+                grade: true,
+                examDate: true,
+                sortOrder: true,
+                retakes: { select: { id: true, grade: true, examDate: true, createdAt: true } },
+              },
+            },
+            finalExams: {
+              select: { id: true, grade: true, examDate: true, isExternalExam: true, createdAt: true },
+            },
+          },
+        },
+      },
+    });
+
+    return { user, enrollments };
+  }
+
+  async purgeDeletedUsers(now: Date = new Date()): Promise<{ purged: number }> {
+    const users = await this.prisma.user.findMany({
+      where: { deletedAt: { lt: purgeCutoff(now) } },
+      select: { id: true },
+    });
+
+    for (const u of users) {
+      await this.prisma.$transaction([
+        this.prisma.finalExam.deleteMany({ where: { attempt: { enrollment: { userId: u.id } } } }),
+        this.prisma.evaluationRetake.deleteMany({
+          where: { instance: { attempt: { enrollment: { userId: u.id } } } },
+        }),
+        this.prisma.evaluationInstance.deleteMany({
+          where: { attempt: { enrollment: { userId: u.id } } },
+        }),
+        this.prisma.subjectAttempt.deleteMany({ where: { enrollment: { userId: u.id } } }),
+        this.prisma.userStudyPlanEnrollment.deleteMany({ where: { userId: u.id } }),
+        this.prisma.refreshToken.deleteMany({ where: { userId: u.id } }),
+        this.prisma.auditLog.updateMany({ where: { actorId: u.id }, data: { actorId: null } }),
+        this.prisma.user.delete({ where: { id: u.id } }),
+      ]);
+    }
+
+    return { purged: users.length };
   }
 
   googleUrl(): GoogleAuthUrl {
