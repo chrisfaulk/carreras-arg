@@ -2,8 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-:root,
-html.light {
+:root {
   --spacing-1: 0.25rem;
   --spacing-2: 0.5rem;
   --spacing-3: 0.75rem;
@@ -73,7 +72,7 @@ html.light {
   }
 }
 
-html.dark {
+[data-theme="dark"] {
   --color-bg: #0a0a0a;
   --color-surface: #171717;
   --color-fg: #fafafa;
@@ -99,6 +98,43 @@ html.dark {
 }
 
 @layer base {
+  :root {
+    color-scheme: light dark;
+  }
+
+  [data-theme="light"] {
+    color-scheme: light;
+  }
+
+  [data-theme="light"] {
+    --color-bg: #f4f4f5;
+    --color-surface: #fafafa;
+    --color-fg: #171717;
+    --color-muted: #595959;
+    --color-border: #e4e4e7;
+    --color-ring: #171717;
+    --color-primary: #0369a1;
+    --color-on-primary: #fafafa;
+    --color-accent: #075985;
+    --color-on-accent: #fafafa;
+    --color-danger: #b91c1c;
+    --color-on-danger: #fafafa;
+    --color-passed: #171717;
+    --color-on-passed: #fafafa;
+    --color-progress: #1d4ed8;
+    --color-on-progress: #fafafa;
+    --color-pending: #92400e;
+    --color-on-pending: #fafafa;
+    --color-available: #166534;
+    --color-on-available: #fafafa;
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
+    --shadow-md: 0 4px 16px rgb(0 0 0 / 0.08);
+  }
+
+  [data-theme="dark"] {
+    color-scheme: dark;
+  }
+
   body {
     background-color: var(--color-bg);
     color: var(--color-fg);

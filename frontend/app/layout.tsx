@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 import localFont from "next/font/local";
-import { clsx as cx } from "clsx";
 import CookieBanner from "@/features/cookies/cookie-banner";
 import Providers from "./providers";
 import Toaster from "@/components/ui/toaster";
 import SiteHeader from "@/components/site-header";
 import SiteFooter from "@/components/site-footer";
+import { getTheme } from "@/features/theme/theme";
+import ThemeScope from "@/features/theme/theme-scope";
 import "./globals.css";
 
 const inter = localFont({
@@ -30,23 +30,21 @@ export const metadata: Metadata = {
   twitter: { card: "summary", title: "Carreras ARG" },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const theme = cookies().get("theme")?.value;
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const theme = await getTheme();
 
   return (
-    <html
-      lang="es"
-      className={cx(inter.className, theme === "dark" ? "dark" : theme === "light" ? "light" : undefined)}
-      style={{ colorScheme: theme === "dark" ? "dark" : theme === "light" ? "light" : "light dark" }}
-    >
-      <body className={cx("flex min-h-screen flex-col")}>
-        <SiteHeader />
-        <Providers>
-          <div className="flex-1">{children}</div>
-          <Toaster />
-        </Providers>
-        <CookieBanner />
-        <SiteFooter />
+    <html lang="es" className={inter.className}>
+      <body>
+        <ThemeScope initial={theme ?? "system"}>
+          <SiteHeader />
+          <Providers>
+            <div className="flex-1">{children}</div>
+            <Toaster />
+          </Providers>
+          <CookieBanner />
+          <SiteFooter />
+        </ThemeScope>
       </body>
     </html>
   );

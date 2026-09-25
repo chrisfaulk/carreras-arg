@@ -29,7 +29,7 @@ export default async function SiteHeader({ className }: { className?: string }) 
             ) : null}
           </p>
           <p className="flex items-center gap-2">
-            <ThemeToggle value={theme ?? "system"} />
+            <ThemeToggle initial={theme ?? "system"} />
             {session ? (
               <LogoutButton />
             ) : (
