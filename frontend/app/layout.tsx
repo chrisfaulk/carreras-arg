@@ -11,8 +11,17 @@ const inter = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Carreras ARG",
-  description: "Seguimiento de materias y correlativas para estudiantes argentinos.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://carreras-arg.ar"),
+  title: { default: "Carreras ARG", template: "%s - Carreras ARG" },
+  description:
+    "Seguimiento de materias, correlativas, promedios y avance para estudiantes de universidades argentinas.",
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: "Carreras ARG",
+    description: "Seguimiento de materias, correlativas, promedios y avance para estudiantes argentinos.",
+    images: [{ url: "/og.svg" }],
+  },
+  twitter: { card: "summary", title: "Carreras ARG" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

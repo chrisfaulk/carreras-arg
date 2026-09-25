@@ -1,0 +1,19 @@
+# Carreras ARG
+
+Portal open source para estudiantes de universidades argentinas: seguimiento de
+materias, correlativas, promedios y avance por plan de estudio.
+
+- Sitio: /
+- Universidades: /universities
+- Privacidad: /legal/privacy
+- Términos: /legal/terms
+- Cookies: /legal/cookies
+
+API pública de catálogo (lectura, paginada `?q=&page&limit`):
+
+- GET /api/universities
+- GET /api/careers?universityId=
+- GET /api/study-plans?careerId=
+- GET /api/subjects?studyPlanId=
+
+Contacto: vía GitHub Issues del repositorio.
