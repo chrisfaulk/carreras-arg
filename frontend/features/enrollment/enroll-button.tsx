@@ -20,7 +20,7 @@ export default function EnrollButton({ planId, className }: { planId: string; cl
         body: JSON.stringify({ studyPlanId: planId }),
       });
 
-      toast("Te anotaste al plan");
+      toast("Plan registrado");
 
       router.refresh();
     } catch (error) {
@@ -31,7 +31,7 @@ export default function EnrollButton({ planId, className }: { planId: string; cl
       }
 
       if (error instanceof ApiError && error.status === 409) {
-        toast("Ya estás anotado a este plan");
+        toast("Ya registraste este plan");
 
         router.refresh();
 
@@ -46,7 +46,7 @@ export default function EnrollButton({ planId, className }: { planId: string; cl
 
   return (
     <Button variant="primary" size="sm" disabled={pending} onClick={() => void enroll()} className={className}>
-      Anotarme a este plan
+      Registrar este plan
     </Button>
   );
 }

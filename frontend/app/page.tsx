@@ -14,7 +14,7 @@ export default async function Home() {
       <Container>
         <PageHeader
           title="Seguí tu carrera, materia por materia"
-          sub="Anotate a tu plan de estudio y descubrí qué materias podés cursar según correlativas."
+          sub="Registrá el plan que cursás y descubrí qué materias podés cursar según correlativas."
           actions={
             <Button variant="primary" href="/universities">
               Buscar universidades

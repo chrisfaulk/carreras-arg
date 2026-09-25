@@ -35,7 +35,7 @@ export class EnrollmentService {
         select: { id: true, studyPlanId: true },
       });
     } catch (error) {
-      if (isDuplicate(error)) ERR.conflict("DUPLICATE", "Ya anotado a ese plan");
+      if (isDuplicate(error)) ERR.conflict("DUPLICATE", "Ya registrado en ese plan");
 
       throw error;
     }

@@ -1,6 +1,6 @@
 # Política de privacidad
 
-> Vigencia: 2026-09-25. Version 1.2. Historial de cambios al final.
+> Vigencia: 2026-09-25. Version 1.3. Historial de cambios al final.
 
 ## 1. Responsable
 
@@ -29,7 +29,7 @@ No se solicita DNI, legajo, domicilio, telefono ni datos de pago. `display_name`
 
 ## 3. Finalidad y base legal
 
-- Finalidad: permitir al usuario anotarse a planes de estudio y calcular materias cursables segun correlativas, promedios y avance.
+- Finalidad: permitir al usuario registrar los planes que cursa y calcular materias cursables segun correlativas, promedios y avance.
 - Base legal: consentimiento (Ley 25.326 art. 5). Se registra en `user.accepted_privacy_at` al aceptar Términos y esta política en el registro. Sin aceptación no se crea la cuenta.
 - Edad: servicio dirigido a mayores de 16 anos (13 en Argentina). Si sos menor, requieres autorización de tutor. No se verifica identidad mas alla del email.
 
@@ -73,3 +73,4 @@ Cambios se publican con nueva fecha de vigencia y entrada en changelog. Cambios 
 - 1.0 (2026-09-22): version inicial.
 - 1.1 (2026-09-23): corrige endpoint de perfil a `PUT /users/me`.
 - 1.2 (2026-09-25): aclara borrado: soft delete conserva datos 30 días, luego hard delete.
+- 1.3 (2026-09-25): finalidad sin publicidad engañosa: registrar planes que se cursan, no inscripción.

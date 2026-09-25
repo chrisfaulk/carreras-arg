@@ -1,10 +1,10 @@
 # Términos y condiciones
 
-> Vigencia: 2026-09-22. Version 1.0.
+> Vigencia: 2026-09-25. Version 1.1.
 
 ## 1. Objeto
 
-Carreras ARG es un portal open source para estudiantes de universidades argentinas que permite anotarse a planes de estudio y calcular materias cursables segun correlativas. Ver `specification.md`.
+Carreras ARG es un portal open source para estudiantes de universidades argentinas que permite registrar los planes que se cursan y calcular materias cursables segun correlativas. Ver `specification.md`.
 
 ## 2. Aceptación
 
@@ -56,3 +56,4 @@ Leyes de la República Argentina. Jurisdicción: tribunales ordinarios del domic
 ## Changelog
 
 - 1.0 (2026-09-22): version inicial.
+- 1.1 (2026-09-25): objeto sin publicidad engañosa: registrar planes que se cursan, no inscripción.

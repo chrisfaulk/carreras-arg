@@ -32,7 +32,7 @@
 
 | Ruta | Composición |
 |------|-------------|
-| `/dashboard` | Cards mis planes (progreso %, promedio) + CTA "Anotarme" → `/universities`. Empty: "No estás anotado a ningún plan". |
+| `/dashboard` | Cards mis planes (progreso %, promedio) + CTA "Registrar plan" → `/universities`. Empty: "No registraste ningún plan". |
 | `/dashboard/enrollments/:id` | Tabs por estado (Cursables/En final/Cursando/Aprobadas) + badges + banner `insufficientCorrelatives` (toast, no bloqueante). Datos de `GET /enrollments/:id/cursables` y `GET /study-plans/:id/subjects?status=`. |
 | `/dashboard/attempts/:id` | Detalle cursada: instancias + retakes + final + botón "Cerrar cursada" (Fase 2). |
 | `/dashboard/profile` | Form `display_name`, toggle `is_public` (`PUT /users/me`), export JSON, zona peligrosa borrado soft. |
