@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import Link from "next/link";
+import { clsx as cx } from "clsx";
+import CookieBanner from "@/features/cookies/cookie-banner";
+import Providers from "./providers";
+import Toaster from "@/components/ui/toaster";
+import SiteHeader from "@/components/site-header";
+import SiteFooter from "@/components/site-footer";
 import "./globals.css";
 
 const inter = localFont({
@@ -27,15 +32,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" className={inter.className}>
-      <body>
-        {children}
-        <footer className="p-4 text-sm text-muted">
-          <Link href="/legal/privacy">Privacidad</Link>
-          {" · "}
-          <Link href="/legal/terms">Términos</Link>
-          {" · "}
-          <Link href="/legal/cookies">Cookies</Link>
-        </footer>
+      <body className={cx("flex min-h-screen flex-col")}>
+        <SiteHeader />
+        <Providers>
+          <div className="flex-1">{children}</div>
+          <Toaster />
+        </Providers>
+        <CookieBanner />
+        <SiteFooter />
       </body>
     </html>
   );

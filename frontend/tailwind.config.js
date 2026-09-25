@@ -1,27 +1,57 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ["./app/**/*.{ts,tsx}"],
+  content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./features/**/*.{ts,tsx}"],
   theme: {
     extend: {
       spacing: {
         1: "var(--spacing-1)",
         2: "var(--spacing-2)",
+        3: "var(--spacing-3)",
         4: "var(--spacing-4)",
+        6: "var(--spacing-6)",
         8: "var(--spacing-8)",
+        12: "var(--spacing-12)",
+        16: "var(--spacing-16)",
       },
       fontSize: {
+        xs: "var(--font-size-xs)",
         sm: "var(--font-size-sm)",
         md: "var(--font-size-md)",
         lg: "var(--font-size-lg)",
+        xl: "var(--font-size-xl)",
+        display: "var(--font-size-display)",
       },
       borderRadius: {
         sm: "var(--radius-sm)",
         md: "var(--radius-md)",
+        lg: "var(--radius-lg)",
+        full: "var(--radius-full)",
       },
       colors: {
         bg: "var(--color-bg)",
+        surface: "var(--color-surface)",
         fg: "var(--color-fg)",
         muted: "var(--color-muted)",
+        border: "var(--color-border)",
+        ring: "var(--color-ring)",
+        danger: "var(--color-danger)",
+        "on-danger": "var(--color-on-danger)",
+        passed: "var(--color-passed)",
+        "on-passed": "var(--color-on-passed)",
+        progress: "var(--color-progress)",
+        "on-progress": "var(--color-on-progress)",
+        pending: "var(--color-pending)",
+        "on-pending": "var(--color-on-pending)",
+        available: "var(--color-available)",
+        "on-available": "var(--color-on-available)",
+      },
+      boxShadow: {
+        sm: "var(--shadow-sm)",
+        md: "var(--shadow-md)",
+      },
+      maxWidth: {
+        narrow: "28rem",
+        prose: "42rem",
       },
     },
   },
