@@ -18,7 +18,9 @@ export default function Tabs({ items, label, className }: { items: TabItem[]; la
               aria-current={item.current ? "page" : undefined}
               className={cx(
                 "-mb-px border-b-2 px-3 py-2 text-sm transition-colors",
-                item.current ? "border-fg font-medium text-fg" : "border-transparent text-muted hover:text-fg",
+                item.current
+                  ? "border-primary font-medium text-fg"
+                  : "border-transparent text-muted hover:text-primary",
               )}
             >
               {item.label}

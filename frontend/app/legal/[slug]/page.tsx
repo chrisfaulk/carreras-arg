@@ -66,7 +66,7 @@ export default async function LegalPage({ params }: { params: { slug: string } }
         <PageHeader title={titleFor(params.slug)} />
         <article className="prose-legal pb-4 text-md leading-7" dangerouslySetInnerHTML={{ __html: html }} />
         <p className="pb-12">
-          <Link className="text-sm text-muted underline-offset-4 hover:text-fg hover:underline" href="/">
+          <Link className="text-sm text-muted underline-offset-4 hover:text-primary hover:underline" href="/">
             Volver al inicio
           </Link>
         </p>

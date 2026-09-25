@@ -26,7 +26,7 @@ export default function TextField({
         aria-describedby={error ? errorId : undefined}
         className={cx(
           "w-full rounded-md border bg-surface px-3 py-2 text-md placeholder:text-muted",
-          error ? "border-danger" : "border-border focus:border-fg",
+          error ? "border-danger" : "border-border focus:border-primary",
         )}
         {...rest}
       />

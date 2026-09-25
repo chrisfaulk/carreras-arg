@@ -30,7 +30,7 @@ export default async function Home() {
               </h2>
               <Link
                 href="/universities"
-                className="text-sm text-muted underline-offset-4 hover:text-fg hover:underline"
+                className="text-sm text-muted underline-offset-4 hover:text-primary hover:underline"
               >
                 Ver todas
               </Link>
@@ -40,13 +40,13 @@ export default async function Home() {
                 <li key={u.id}>
                   <Link
                     href={`/universities/${u.id}`}
-                    className="group flex items-center justify-between gap-4 py-3 text-md transition-colors hover:text-fg"
+                    className="group flex items-center justify-between gap-4 py-3 text-md transition-colors hover:text-primary"
                   >
                     <span className="truncate">{u.name}</span>
                     <HugeiconsIcon
                       icon={ArrowRight01Icon}
                       size={16}
-                      className="shrink-0 text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-fg"
+                      className="shrink-0 text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
                     />
                   </Link>
                 </li>

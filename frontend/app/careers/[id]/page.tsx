@@ -42,7 +42,7 @@ export default async function CareerPage({
           eyebrow={
             <Link
               href={`/universities/${career.university.id}`}
-              className="underline-offset-4 hover:text-fg hover:underline"
+              className="underline-offset-4 hover:text-primary hover:underline"
             >
               {career.university.name}
             </Link>
@@ -79,7 +79,7 @@ export default async function CareerPage({
                       <HugeiconsIcon
                         icon={ArrowRight01Icon}
                         size={16}
-                        className="text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-fg"
+                        className="text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
                       />
                     </span>
                   </Link>

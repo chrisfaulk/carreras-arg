@@ -40,7 +40,7 @@ export default async function UniversityPage({
       <Container>
         <PageHeader
           eyebrow={
-            <Link href="/universities" className="underline-offset-4 hover:text-fg hover:underline">
+            <Link href="/universities" className="underline-offset-4 hover:text-primary hover:underline">
               Universidades
             </Link>
           }
@@ -76,7 +76,7 @@ export default async function UniversityPage({
                     <HugeiconsIcon
                       icon={ArrowRight01Icon}
                       size={16}
-                      className="shrink-0 text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-fg"
+                      className="shrink-0 text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
                     />
                   </Link>
                 </li>

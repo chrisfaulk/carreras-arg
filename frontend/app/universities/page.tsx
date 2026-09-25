@@ -74,7 +74,7 @@ export default async function UniversitiesPage({ searchParams }: { searchParams:
                     <HugeiconsIcon
                       icon={ArrowRight01Icon}
                       size={16}
-                      className="shrink-0 text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-fg"
+                      className="shrink-0 text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
                     />
                   </Link>
                 </li>

@@ -58,12 +58,15 @@ export default async function PlanPage({
             <>
               <Link
                 href={`/universities/${plan.career.university.id}`}
-                className="underline-offset-4 hover:text-fg hover:underline"
+                className="underline-offset-4 hover:text-primary hover:underline"
               >
                 {plan.career.university.name}
               </Link>
               {" · "}
-              <Link href={`/careers/${plan.career.id}`} className="underline-offset-4 hover:text-fg hover:underline">
+              <Link
+                href={`/careers/${plan.career.id}`}
+                className="underline-offset-4 hover:text-primary hover:underline"
+              >
                 {plan.career.name}
               </Link>
             </>

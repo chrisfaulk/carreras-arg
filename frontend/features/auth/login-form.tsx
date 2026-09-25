@@ -96,7 +96,7 @@ export default function LoginForm({ className }: { className?: string }) {
       </Button>
 
       <p className="text-center text-sm text-muted">
-        <Link href="/forgot" className="underline-offset-4 hover:text-fg hover:underline">
+        <Link href="/forgot" className="underline-offset-4 hover:text-primary hover:underline">
           Olvidé mi contraseña
         </Link>
       </p>

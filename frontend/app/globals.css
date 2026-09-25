@@ -21,22 +21,26 @@
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
   --radius-full: 9999px;
-  --color-bg: #fafafa;
-  --color-surface: #ffffff;
+  --color-bg: #f4f4f5;
+  --color-surface: #fafafa;
   --color-fg: #171717;
   --color-muted: #595959;
-  --color-border: #e5e5e5;
+  --color-border: #e4e4e7;
   --color-ring: #171717;
+  --color-primary: #0369a1;
+  --color-on-primary: #fafafa;
+  --color-accent: #075985;
+  --color-on-accent: #fafafa;
   --color-danger: #b91c1c;
-  --color-on-danger: #ffffff;
+  --color-on-danger: #fafafa;
   --color-passed: #171717;
   --color-on-passed: #fafafa;
   --color-progress: #1d4ed8;
-  --color-on-progress: #ffffff;
+  --color-on-progress: #fafafa;
   --color-pending: #92400e;
-  --color-on-pending: #ffffff;
+  --color-on-pending: #fafafa;
   --color-available: #166534;
-  --color-on-available: #ffffff;
+  --color-on-available: #fafafa;
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
   --shadow-md: 0 4px 16px rgb(0 0 0 / 0.08);
 }
@@ -49,6 +53,10 @@
     --color-muted: #a3a3a3;
     --color-border: #262626;
     --color-ring: #fafafa;
+    --color-primary: #38bdf8;
+    --color-on-primary: #0a0a0a;
+    --color-accent: #7dd3fc;
+    --color-on-accent: #0a0a0a;
     --color-danger: #f87171;
     --color-on-danger: #0a0a0a;
     --color-passed: #fafafa;
@@ -73,8 +81,8 @@
   }
 
   ::selection {
-    background: var(--color-fg);
-    color: var(--color-bg);
+    background: var(--color-primary);
+    color: var(--color-on-primary);
   }
 
   :focus-visible {
@@ -116,6 +124,10 @@
     color: var(--color-fg);
     text-decoration: underline;
     text-underline-offset: 4px;
+  }
+
+  .prose-legal a:hover {
+    color: var(--color-primary);
   }
 
   .shimmer {

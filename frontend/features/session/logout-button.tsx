@@ -30,7 +30,7 @@ export default function LogoutButton({ className }: { className?: string }) {
       disabled={pending}
       onClick={() => void logout()}
       className={cx(
-        "rounded-md px-3 py-1.5 text-sm text-muted transition-colors hover:text-fg disabled:opacity-50",
+        "rounded-md px-3 py-1.5 text-sm text-muted transition-colors hover:text-primary disabled:opacity-50",
         className,
       )}
     >

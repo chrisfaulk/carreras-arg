@@ -16,11 +16,11 @@ export default async function SiteHeader({ className }: { className?: string }) 
             <Link href="/" className="text-md font-semibold tracking-tight">
               Carreras ARG
             </Link>
-            <Link href="/universities" className="hidden text-sm text-muted hover:text-fg sm:inline">
+            <Link href="/universities" className="hidden text-sm text-muted hover:text-primary sm:inline">
               Universidades
             </Link>
             {session ? (
-              <Link href="/dashboard/profile" className="hidden text-sm text-muted hover:text-fg sm:inline">
+              <Link href="/dashboard/profile" className="hidden text-sm text-muted hover:text-primary sm:inline">
                 Mi perfil
               </Link>
             ) : null}

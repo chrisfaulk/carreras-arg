@@ -37,7 +37,7 @@ export default function CookieBanner({ className }: { className?: string }) {
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 px-4 py-3 text-sm text-muted md:flex-row md:items-center md:justify-between md:px-8">
         <p>
           Solo usamos cookies necesarias para la sesión. Ver{" "}
-          <a className="text-fg underline underline-offset-4" href="/legal/cookies">
+          <a className="text-primary underline underline-offset-4" href="/legal/cookies">
             política de cookies
           </a>
           .
@@ -45,7 +45,7 @@ export default function CookieBanner({ className }: { className?: string }) {
         <button
           type="button"
           onClick={close}
-          className="w-fit shrink-0 rounded-full border border-border px-3 py-1.5 text-sm font-medium text-fg transition-colors hover:border-fg"
+          className="w-fit shrink-0 rounded-full border border-border px-3 py-1.5 text-sm font-medium text-fg transition-colors hover:border-primary"
         >
           Cerrar aviso
         </button>
