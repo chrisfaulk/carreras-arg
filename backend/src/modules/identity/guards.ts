@@ -45,23 +45,6 @@ export class AuthGuard implements CanActivate {
     });
 
     if (!user || user.deletedAt) ERR.unauth();
-    const origin = req.headers?.origin as string | undefined;
-
-    if (origin) {
-      const host = req.headers?.host as string | undefined;
-
-      try {
-        const o = new URL(origin);
-
-        if (host && o.host !== host && !o.host.endsWith(".vercel.app")) {
-          const api = new URL(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost");
-
-          if (o.host !== api.host) ERR.forbidden();
-        }
-      } catch {
-        ERR.forbidden();
-      }
-    }
 
     req.user = { id: user!.id, isAdmin: user!.isAdmin };
 
