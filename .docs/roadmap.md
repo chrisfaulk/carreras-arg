@@ -34,18 +34,20 @@
 
 | # | Objetivo | Done | Commit |
 |---|----------|------|--------|
-| 2.1 | `POST /enrollments` (UQ `user+plan`) + `GET /enrollments/me` | Enroll e2e | `feat(enrollment): enroll plan` |
-| 2.2 | `POST /enrollments/:id/attempts` (solo si visible `AVAILABLE|PENDING_FINAL`, sino `409`; txn + `FOR UPDATE` enrollment; auto-template 2×`PARTIAL`) | Creación testeada | `feat(tracking): create attempt` |
-| 2.3 | `PUT /attempts/:id` (máquina `IN_PROGRESS<->PENDING_FINAL<->PASSED`, idempotente, libre con `is_external_exam` en misma txn; `422` hacia `AVAILABLE/NOT_AVAILABLE`) + tests caja negra | Tests verdes | `feat(tracking): state machine` |
-| 2.4 | `AvailabilityReader`: vista computada (pesos `PASSED 4 > IN_PROGRESS 3 > PENDING_FINAL 2 > AVAILABLE 1 > NOT_AVAILABLE 0`, ignora `annulled_at NOT NULL`, regla `PREVIOUS`/`CONCURRENT`, flag `insufficientCorrelatives`) | 90/10 perf ok | `feat(tracking): availability engine` |
-| 2.5 | `PUT /attempts/:id/close` (cierre explícito: `effective=MAX`, `avg`, redondeo mitad-arriba a entero, transición, anulación de siblings `PENDING_FINAL` en misma txn, `422` si instancias incompletas) + tests (`7,7→PASSED`; `4,4+requires_final→PENDING_FINAL`; `3,3→desaprobado`) | Tests verdes | `feat(tracking): close attempt` |
-| 2.6 | `GET /study-plans/:id/subjects` y `GET /enrollments/:id/cursables` paginados (`?status=&q=&page&limit`, `{data,meta}`) | `limit` y `total` ok | `feat(tracking): paginated cursables` |
-| 2.7 | Instancias (`POST/PUT/DELETE /attempts/:id/instances`, todo `type` cuenta, `sort_order`, ownership + lock) | CRUD ok | `feat(evaluation): instances` |
-| 2.8 | Retakes (`POST /instances/:id/retakes`, mejor-nota-manda) | CRUD ok | `feat(evaluation): retakes` |
-| 2.9 | Finales (`POST/PUT /attempts/:id/final-exams`, `409 FINAL_BLOCKED_BY_IN_PROGRESS` si hay sibling `IN_PROGRESS`) | CRUD ok | `feat(evaluation): finals` |
-| 2.10 | `GET /enrollments/:id/averages` (`average`, `average_with_failures` con aplazo `<4`, `progress` con `MIN(electivas, required_electives)`) + tests caja negra | Cálculo testeado | `feat(tracking): averages+progress` |
+| 2.1 | `POST /enrollments` (UQ `user+plan`) + `GET /enrollments/me` | Enroll e2e ✅ | `feat(enrollment): enroll plan` |
+| 2.2 | `POST /enrollments/:id/attempts` (solo si visible `AVAILABLE|PENDING_FINAL`, sino `409`; txn + `FOR UPDATE` enrollment; auto-template 2×`PARTIAL`) | Creación testeada ✅ | `feat(tracking): create attempt` |
+| 2.3 | `PUT /attempts/:id` (máquina `IN_PROGRESS<->PENDING_FINAL<->PASSED`, idempotente, libre con `is_external_exam` en misma txn; `422` hacia `AVAILABLE/NOT_AVAILABLE`) + tests caja negra | Tests verdes ✅ | `feat(tracking): state machine` |
+| 2.4 | `AvailabilityReader`: vista computada (pesos `PASSED 4 > IN_PROGRESS 3 > PENDING_FINAL 2 > AVAILABLE 1 > NOT_AVAILABLE 0`, ignora `annulled_at NOT NULL`, regla `PREVIOUS`/`CONCURRENT`, flag `insufficientCorrelatives`) | 90/10 perf ok ✅ | `feat(tracking): availability engine` |
+| 2.5 | `PUT /attempts/:id/close` (cierre explícito: `effective=MAX`, `avg`, redondeo mitad-arriba a entero, transición, anulación de siblings `PENDING_FINAL` en misma txn, `422` si instancias incompletas) + tests (`7,7→PASSED`; `4,4+requires_final→PENDING_FINAL`; `3,3→desaprobado`) | Tests verdes ✅ | `feat(tracking): close attempt` |
+| 2.6 | `GET /study-plans/:id/subjects` y `GET /enrollments/:id/cursables` paginados (`?status=&q=&page&limit`, `{data,meta}`) | `limit` y `total` ok ✅ | `feat(tracking): paginated cursables` |
+| 2.7 | Instancias (`POST/PUT/DELETE /attempts/:id/instances`, todo `type` cuenta, `sort_order`, ownership + lock) | CRUD ok ✅ | `feat(evaluation): instances` |
+| 2.8 | Retakes (`POST /instances/:id/retakes`, mejor-nota-manda) | CRUD ok ✅ | `feat(evaluation): retakes` |
+| 2.9 | Finales (`POST/PUT /attempts/:id/final-exams`, `409 FINAL_BLOCKED_BY_IN_PROGRESS` si hay sibling `IN_PROGRESS`) | CRUD ok ✅ | `feat(evaluation): finals` |
+| 2.10 | `GET /enrollments/:id/averages` (`average`, `average_with_failures` con aplazo `<4`, `progress` con `MIN(electivas, required_electives)`) + tests caja negra | Cálculo testeado ✅ | `feat(tracking): averages+progress` |
 
 ## Fase 3: Privacidad, SEO, legal y a11y
+
+> Mapa de Fase 2 para lookup rápido: `backend/src/main.ts` (prefix, filtros globales; Helmet/CSP/CORS en 3.4), `backend/src/shared/*` (`api-error`, `filters`, `pagination` con `status`, `read-models`, `tokens`), `backend/src/modules/identity/*` (3.1: `identity.service` delete/export, `guards`, `accepted_privacy_at`), `backend/src/modules/enrollment|tracking|evaluation/*` (dominio para export 3.1 y e2e 3.6), `backend/prisma/schema.prisma` (`user.deleted_at`, cron hard-delete 30d en 3.1), `backend/test/*.test.mjs` (base e2e 3.6), `frontend/app/layout.tsx` + `globals.css` (tokens, footer legal, foco visible 3.5), `frontend/app/legal/[slug]/page.tsx` + `frontend/lib/legal.ts` + `.docs/legal/*` (3.3), `frontend/next.config.js` (rewrites; headers en 3.4), `frontend/public/fonts/` (self-hosted) y `public/llm.txt` (por crear, 3.2), `frontend/app/robots.ts|sitemap.ts|not-found.tsx|loading.tsx` (por crear, 3.2/3.4), `.github/workflows/ci.yml` (axe/Lighthouse 3.5, deploy 3.6), `turbo.json` + `.env.example` (3.6). Sin `vercel.json`/`render.yaml` aún (los crea 3.6); sin TanStack Query ni `@nestjs/schedule` instalados (los piden 3.4 y 3.1).
 
 | # | Objetivo | Done | Commit |
 |---|----------|------|--------|
