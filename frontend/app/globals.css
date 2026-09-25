@@ -54,8 +54,8 @@ html.light {
     --color-muted: #a3a3a3;
     --color-border: #262626;
     --color-ring: #fafafa;
-    --color-primary: #38bdf8;
-    --color-on-primary: #0a0a0a;
+    --color-primary: #0277bd;
+    --color-on-primary: #fafafa;
     --color-accent: #7dd3fc;
     --color-on-accent: #0a0a0a;
     --color-danger: #f87171;
@@ -80,8 +80,8 @@ html.dark {
   --color-muted: #a3a3a3;
   --color-border: #262626;
   --color-ring: #fafafa;
-  --color-primary: #38bdf8;
-  --color-on-primary: #0a0a0a;
+  --color-primary: #0277bd;
+  --color-on-primary: #fafafa;
   --color-accent: #7dd3fc;
   --color-on-accent: #0a0a0a;
   --color-danger: #f87171;
