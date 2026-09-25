@@ -3,16 +3,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Search01Icon } from "@hugeicons/core-free-icons";
-import Badge from "@/components/ui/badge";
 import Button from "@/components/ui/button";
 import EmptyState from "@/components/ui/empty-state";
 import Pagination from "@/components/ui/pagination";
 import TextField from "@/components/ui/text-field";
 import { Container, PageHeader } from "@/components/container";
-import { getPlan, getPlanSubjects, getSubjects, type PlanSubject, type Subject } from "@/features/catalog/catalog";
+import { getPlan, getPlanSubjects, getSubjects } from "@/features/catalog/catalog";
 import EnrollButton from "@/features/enrollment/enroll-button";
 import { getSession } from "@/features/session/get-session";
-import { STATUS_LABEL, STATUS_TONE } from "@/features/tracking/status";
+import { ElectiveLabel, InsufficientBlock, InsufficientSuffix, SubjectBadge } from "@/features/tracking/subject-status";
+import { pageNumber } from "@/lib/paged";
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const plan = await getPlan(params.id);
@@ -24,12 +24,6 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
     description: `Materias del plan ${plan.year} de ${plan.career.name} en Carreras ARG.`,
     alternates: { canonical: `/plans/${params.id}` },
   };
-}
-
-function pageNumber(raw: string | undefined): number {
-  const page = Number(raw ?? "1");
-
-  return Number.isInteger(page) && page > 0 ? page : 1;
 }
 
 export default async function PlanPage({
@@ -144,14 +138,14 @@ export default async function PlanPage({
                     <tr key={s.id} className="tnum">
                       <td className="py-2.5 pr-4 text-md">
                         {s.name}
-                        {isTracked(s) && s.insufficientCorrelatives ? (
-                          <span className="block text-sm text-muted">Correlativas insuficientes</span>
-                        ) : null}
+                        <InsufficientBlock subject={s} enrolled={enrolled} />
                       </td>
-                      <td className="py-2.5 pr-4 text-sm text-muted">{s.isElective ? "Electiva" : "Obligatoria"}</td>
-                      {enrolled && isTracked(s) ? (
+                      <td className="py-2.5 pr-4 text-sm text-muted">
+                        <ElectiveLabel subject={s} />
+                      </td>
+                      {enrolled ? (
                         <td className="py-2.5">
-                          <Badge tone={STATUS_TONE[s.status]}>{STATUS_LABEL[s.status]}</Badge>
+                          <SubjectBadge subject={s} enrolled={enrolled} />
                         </td>
                       ) : null}
                     </tr>
@@ -165,13 +159,11 @@ export default async function PlanPage({
                 <li key={s.id} className="grid gap-1 py-3">
                   <span className="flex flex-wrap items-center gap-2 text-md">
                     {s.name}
-                    {enrolled && isTracked(s) ? (
-                      <Badge tone={STATUS_TONE[s.status]}>{STATUS_LABEL[s.status]}</Badge>
-                    ) : null}
+                    <SubjectBadge subject={s} enrolled={enrolled} />
                   </span>
                   <span className="text-sm text-muted">
-                    {s.isElective ? "Electiva" : "Obligatoria"}
-                    {isTracked(s) && s.insufficientCorrelatives ? " · Correlativas insuficientes" : ""}
+                    <ElectiveLabel subject={s} />
+                    <InsufficientSuffix subject={s} enrolled={enrolled} />
                   </span>
                 </li>
               ))}
@@ -189,8 +181,4 @@ export default async function PlanPage({
       </Container>
     </main>
   );
-}
-
-function isTracked(s: Subject | PlanSubject): s is PlanSubject {
-  return "status" in s;
 }

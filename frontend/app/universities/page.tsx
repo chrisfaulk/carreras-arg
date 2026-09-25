@@ -7,18 +7,13 @@ import Pagination from "@/components/ui/pagination";
 import TextField from "@/components/ui/text-field";
 import { Container, PageHeader } from "@/components/container";
 import { getUniversities } from "@/features/catalog/catalog";
+import { pageNumber } from "@/lib/paged";
 
 export const metadata = {
   title: "Universidades",
   description: "Explorá universidades argentinas y sus carreras en Carreras ARG.",
   alternates: { canonical: "/universities" },
 };
-
-function pageNumber(raw: string | undefined): number {
-  const page = Number(raw ?? "1");
-
-  return Number.isInteger(page) && page > 0 ? page : 1;
-}
 
 export default async function UniversitiesPage({ searchParams }: { searchParams: { q?: string; page?: string } }) {
   const q = searchParams.q ?? "";

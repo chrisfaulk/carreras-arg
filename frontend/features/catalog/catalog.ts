@@ -76,8 +76,15 @@ export function getCareers(universityId: string, page: number): Promise<Paged<Ca
   return get<Paged<Career>>(`/careers?universityId=${universityId}&page=${page}&limit=20`);
 }
 
-export function getAllCareers(page: number): Promise<Paged<Career> | null> {
-  return get<Paged<Career>>(`/careers?page=${page}&limit=20`);
+export interface CareerWithPlans extends Career {
+  university: { id: string; name: string };
+  plans: Plan[];
+}
+
+export function getCareersWithPlans(universityId: string, page: number): Promise<Paged<CareerWithPlans> | null> {
+  const filter = universityId ? `universityId=${universityId}&` : "";
+
+  return get<Paged<CareerWithPlans>>(`/careers?${filter}page=${page}&limit=20&includePlans=1`);
 }
 
 export function getCareer(id: string): Promise<CareerDetail | null> {

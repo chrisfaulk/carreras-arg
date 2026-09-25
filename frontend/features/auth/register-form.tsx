@@ -10,6 +10,7 @@ import TextField from "@/components/ui/text-field";
 import { toast } from "@/components/ui/toaster";
 import { api } from "@/lib/api";
 import { clearDraft, useDraftState } from "./form-draft";
+import { REGISTER_RULES, validateRegister, type RegisterErrors } from "./register-rules";
 
 export default function RegisterForm({ className }: { className?: string }) {
   const router = useRouter();
@@ -19,21 +20,11 @@ export default function RegisterForm({ className }: { className?: string }) {
   const [password, setPassword] = useDraftState("register", "password");
   const [privacy, setPrivacy] = useDraftState("register", "acceptedPrivacy");
   const acceptedPrivacy = privacy === "1";
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<RegisterErrors>({});
   const [pending, setPending] = useState(false);
 
   async function register(): Promise<void> {
-    const next: Record<string, string> = {};
-
-    if (!email.includes("@")) next.email = "Email inválido";
-
-    if (username.length < 3) next.username = "Mínimo 3 caracteres";
-
-    if (displayName.length < 1) next.displayName = "Requerido";
-
-    if (password.length < 8) next.password = "Mínimo 8 caracteres";
-
-    if (!acceptedPrivacy) next.acceptedPrivacy = "Tenés que aceptar la política";
+    const next = validateRegister({ email, username, displayName, password, acceptedPrivacy });
 
     setErrors(next);
 
@@ -77,8 +68,8 @@ export default function RegisterForm({ className }: { className?: string }) {
         label="Usuario"
         autoComplete="username"
         value={username}
-        minLength={3}
-        maxLength={30}
+        minLength={REGISTER_RULES.usernameMin}
+        maxLength={REGISTER_RULES.usernameMax}
         error={errors.username}
         onChange={(e) => setUsername(e.target.value)}
       />
@@ -88,7 +79,7 @@ export default function RegisterForm({ className }: { className?: string }) {
         label="Nombre visible"
         autoComplete="nickname"
         value={displayName}
-        maxLength={80}
+        maxLength={REGISTER_RULES.displayNameMax}
         error={errors.displayName}
         onChange={(e) => setDisplayName(e.target.value)}
       />
@@ -99,7 +90,7 @@ export default function RegisterForm({ className }: { className?: string }) {
         type="password"
         autoComplete="new-password"
         value={password}
-        minLength={8}
+        minLength={REGISTER_RULES.passwordMin}
         error={errors.password}
         onChange={(e) => setPassword(e.target.value)}
       />

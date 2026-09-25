@@ -104,31 +104,6 @@
     color-scheme: light;
   }
 
-  [data-theme="light"] {
-    --color-bg: #f4f4f5;
-    --color-surface: #fafafa;
-    --color-fg: #171717;
-    --color-muted: #595959;
-    --color-border: #e4e4e7;
-    --color-ring: #171717;
-    --color-primary: #0369a1;
-    --color-on-primary: #fafafa;
-    --color-accent: #075985;
-    --color-on-accent: #fafafa;
-    --color-danger: #b91c1c;
-    --color-on-danger: #fafafa;
-    --color-passed: #171717;
-    --color-on-passed: #fafafa;
-    --color-progress: #1d4ed8;
-    --color-on-progress: #fafafa;
-    --color-pending: #92400e;
-    --color-on-pending: #fafafa;
-    --color-available: #166534;
-    --color-on-available: #fafafa;
-    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
-    --shadow-md: 0 4px 16px rgb(0 0 0 / 0.08);
-  }
-
   [data-theme="dark"] {
     color-scheme: dark;
   }
@@ -148,6 +123,13 @@
   :focus-visible {
     outline: 2px solid var(--color-ring);
     outline-offset: 2px;
+  }
+
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 1px;
   }
 
   input,
@@ -223,6 +205,112 @@
 
   .prose-legal tbody tr + tr td {
     border-top: 1px solid var(--color-border);
+  }
+
+  select,
+  ::picker(select) {
+    appearance: base-select;
+  }
+
+  select {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+  }
+
+  select > selectedcontent {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  select:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border));
+  }
+
+  select:disabled {
+    cursor: not-allowed;
+  }
+
+  select:has(option[value=""]:checked) {
+    color: var(--color-muted);
+  }
+
+  select::picker-icon {
+    content: "";
+    display: block;
+    flex: none;
+    width: 16px;
+    height: 16px;
+    margin-inline-start: auto;
+    background-color: var(--color-muted);
+    opacity: 0.6;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M18 9.00005C18 9.00005 13.5811 15 12 15C10.4188 15 6 9 6 9' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    -webkit-mask-size: contain;
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M18 9.00005C18 9.00005 13.5811 15 12 15C10.4188 15 6 9 6 9' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    mask-repeat: no-repeat;
+    mask-position: center;
+    mask-size: contain;
+    -webkit-mask-mode: alpha;
+    mask-mode: alpha;
+    transition:
+      rotate 0.15s ease,
+      opacity 0.15s ease;
+  }
+
+  select:open::picker-icon {
+    rotate: 180deg;
+    opacity: 1;
+  }
+
+  ::picker(select) {
+    position-area: block-end;
+    position-try-fallbacks: flip-block;
+    padding: var(--spacing-2);
+    border-radius: var(--radius-full);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-md);
+    background: var(--color-surface);
+  }
+
+  select option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-2);
+    min-height: 2rem;
+    background-color: var(--color-surface);
+    padding: var(--spacing-2) var(--spacing-3);
+    border-radius: var(--radius-full);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  select option::checkmark {
+    display: block;
+    color: var(--color-fg);
+    order: 1;
+  }
+
+  select option:checked {
+    background: color-mix(in srgb, var(--color-primary) 14%, var(--color-surface));
+    color: var(--color-fg);
+    font-weight: 500;
+  }
+
+  select option:hover,
+  select option:focus {
+    background: color-mix(in srgb, var(--color-fg) 8%, transparent);
+  }
+
+  select option:checked:hover,
+  select option:checked:focus {
+    background: color-mix(in srgb, var(--color-primary) 14%, var(--color-surface));
   }
 
   .shimmer {

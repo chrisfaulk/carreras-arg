@@ -4,13 +4,8 @@ import { ArrowRight01Icon, BookOpen01Icon } from "@hugeicons/core-free-icons";
 import Button from "@/components/ui/button";
 import EmptyState from "@/components/ui/empty-state";
 import Pagination from "@/components/ui/pagination";
-import { getAllCareers, getCareers, getPlans, getUniversities, type Plan } from "@/features/catalog/catalog";
-
-function pageNumber(raw: string | undefined): number {
-  const page = Number(raw ?? "1");
-
-  return Number.isInteger(page) && page > 0 ? page : 1;
-}
+import { getCareersWithPlans, getUniversities } from "@/features/catalog/catalog";
+import { pageNumber } from "@/lib/paged";
 
 export interface CatalogQuery {
   universityId: string;
@@ -32,21 +27,7 @@ export default async function CatalogBrowser({
   base: string;
   className?: string;
 }) {
-  const [universities, careers] = await Promise.all([
-    getUniversities("", 1),
-    universityId ? getCareers(universityId, page) : getAllCareers(page),
-  ]);
-
-  const names = new Map((universities?.data ?? []).map((u) => [u.id, u.name] as const));
-  const plansByCareer = new Map<string, Plan[]>();
-
-  if (careers) {
-    const plans = await Promise.all(careers.data.map((c) => getPlans(c.id, 1)));
-
-    for (const [i, listed] of plans.entries()) {
-      if (listed) plansByCareer.set(careers.data[i].id, listed.data);
-    }
-  }
+  const [universities, careers] = await Promise.all([getUniversities("", 1), getCareersWithPlans(universityId, page)]);
 
   return (
     <div className={className}>
@@ -59,7 +40,7 @@ export default async function CatalogBrowser({
             id="universityId"
             name="universityId"
             defaultValue={universityId}
-            className="w-full rounded-full border border-border bg-surface px-3 py-2 text-md"
+            className="w-full max-w-full rounded-full border border-border bg-surface px-3 py-2 text-md focus:border-primary"
           >
             <option value="">Todas</option>
             {(universities?.data ?? []).map((u) => (
@@ -99,13 +80,11 @@ export default async function CatalogBrowser({
                   <Link href={`/careers/${c.id}`} className="text-md font-medium hover:text-primary">
                     {c.name}
                   </Link>
-                  {names.get(c.universityId) ? (
-                    <span className="text-sm text-muted">{names.get(c.universityId)}</span>
-                  ) : null}
+                  <span className="text-sm text-muted">{c.university.name}</span>
                 </span>
-                {(plansByCareer.get(c.id) ?? []).length > 0 ? (
+                {c.plans.length > 0 ? (
                   <span className="flex flex-wrap gap-1.5">
-                    {(plansByCareer.get(c.id) ?? []).map((p) => (
+                    {c.plans.map((p) => (
                       <Link
                         key={p.id}
                         href={`/plans/${p.id}`}
