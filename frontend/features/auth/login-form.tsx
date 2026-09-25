@@ -9,30 +9,6 @@ import TextField from "@/components/ui/text-field";
 import { toast } from "@/components/ui/toaster";
 import { api } from "@/lib/api";
 
-export function GoogleButton({ className }: { className?: string }) {
-  const [pending, setPending] = useState(false);
-
-  async function start(): Promise<void> {
-    setPending(true);
-
-    try {
-      const { url } = await api<{ url: string }>("/auth/google");
-
-      window.location.assign(url);
-    } catch {
-      toast("No se pudo iniciar con Google, reintentá");
-
-      setPending(false);
-    }
-  }
-
-  return (
-    <Button variant="secondary" disabled={pending} onClick={() => void start()} className={cx("w-full", className)}>
-      Continuar con Google
-    </Button>
-  );
-}
-
 export default function LoginForm({ className }: { className?: string }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -100,8 +76,6 @@ export default function LoginForm({ className }: { className?: string }) {
           Olvidé mi contraseña
         </Link>
       </p>
-
-      <GoogleButton />
     </div>
   );
 }
