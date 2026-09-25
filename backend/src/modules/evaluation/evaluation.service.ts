@@ -1,88 +1,21 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
-import { z } from "zod";
 import { PrismaService } from "../../prisma.service";
 import { ERR, OkResult } from "../../shared/api-error";
 import { lockedEnrollment } from "../../shared/read-models";
-import { checkFinalAllowed } from "./final-guard";
+import {
+  FinalExamData,
+  FinalExamUpdateData,
+  InstanceData,
+  InstanceUpdateData,
+  RetakeData,
+  finalExamSelect,
+  instanceSelect,
+  retakeSelect,
+} from "./dto";
+import { assertFinalSlot, lockedFinal, lockedInstance, lockedRetake, ownedAttempt } from "./owned";
 
-export const instanceSchema = z.object({
-  type: z.enum(["PARTIAL", "PRACTICAL_WORK", "DELIVERABLE", "OTHER"]),
-  customTypeName: z.string().min(1).max(120).optional(),
-  grade: z.number().int().min(1).max(10).optional(),
-  examDate: z.string().date().optional(),
-  sortOrder: z.number().int().min(0).optional(),
-});
-
-export type InstanceInput = z.input<typeof instanceSchema>;
-
-export type InstanceData = z.infer<typeof instanceSchema>;
-
-export const instanceUpdateSchema = z.object({
-  type: z.enum(["PARTIAL", "PRACTICAL_WORK", "DELIVERABLE", "OTHER"]).optional(),
-  customTypeName: z.string().min(1).max(120).nullable().optional(),
-  grade: z.number().int().min(1).max(10).nullable().optional(),
-  examDate: z.string().date().nullable().optional(),
-  sortOrder: z.number().int().min(0).optional(),
-});
-
-export type InstanceUpdateInput = z.input<typeof instanceUpdateSchema>;
-
-export type InstanceUpdateData = z.infer<typeof instanceUpdateSchema>;
-
-export const retakeSchema = z.object({
-  grade: z.number().int().min(1).max(10),
-  examDate: z.string().date().optional(),
-});
-
-export type RetakeInput = z.input<typeof retakeSchema>;
-
-export type RetakeData = z.infer<typeof retakeSchema>;
-
-export const finalExamSchema = z.object({
-  grade: z.number().int().min(1).max(10).optional(),
-  examDate: z.string().date().optional(),
-  isExternalExam: z.boolean().default(false),
-});
-
-export type FinalExamInput = z.input<typeof finalExamSchema>;
-
-export type FinalExamData = z.infer<typeof finalExamSchema>;
-
-export const finalExamUpdateSchema = z.object({
-  grade: z.number().int().min(1).max(10).nullable().optional(),
-  examDate: z.string().date().nullable().optional(),
-  isExternalExam: z.boolean().optional(),
-});
-
-export type FinalExamUpdateInput = z.input<typeof finalExamUpdateSchema>;
-
-export type FinalExamUpdateData = z.infer<typeof finalExamUpdateSchema>;
-
-const instanceSelect = {
-  id: true,
-  subjectAttemptId: true,
-  type: true,
-  customTypeName: true,
-  grade: true,
-  examDate: true,
-  sortOrder: true,
-} satisfies Prisma.EvaluationInstanceSelect;
-
-const retakeSelect = {
-  id: true,
-  evaluationInstanceId: true,
-  grade: true,
-  examDate: true,
-} satisfies Prisma.EvaluationRetakeSelect;
-
-const finalExamSelect = {
-  id: true,
-  subjectAttemptId: true,
-  grade: true,
-  examDate: true,
-  isExternalExam: true,
-} satisfies Prisma.FinalExamSelect;
+export * from "./dto";
 
 @Injectable()
 export class EvaluationService {
@@ -90,7 +23,7 @@ export class EvaluationService {
 
   listInstances(userId: string, attemptId: string) {
     return this.prisma.withUserContext(userId, async (tx) => {
-      const attempt = await this.ownedAttempt(tx, userId, attemptId);
+      const attempt = await ownedAttempt(tx, userId, attemptId);
 
       return tx.evaluationInstance.findMany({
         where: { subjectAttemptId: attempt.id },
@@ -110,16 +43,10 @@ export class EvaluationService {
 
   deleteInstance(userId: string, instanceId: string): Promise<OkResult> {
     return this.prisma.withUserContext(userId, async (tx) => {
-      const instance = await tx.evaluationInstance.findUnique({
-        where: { id: instanceId },
-        select: { id: true, attempt: { select: { id: true, enrollment: { select: { id: true, userId: true } } } } },
-      });
+      const instance = await lockedInstance(tx, userId, instanceId);
 
-      if (!instance || instance.attempt.enrollment.userId !== userId) ERR.notFound();
-
-      await lockedEnrollment(tx, instance!.attempt.enrollment.id, userId);
-      await tx.evaluationRetake.deleteMany({ where: { evaluationInstanceId: instanceId } });
-      await tx.evaluationInstance.delete({ where: { id: instanceId } });
+      await tx.evaluationRetake.deleteMany({ where: { evaluationInstanceId: instance.id } });
+      await tx.evaluationInstance.delete({ where: { id: instance.id } });
 
       return { ok: true };
     });
@@ -127,18 +54,11 @@ export class EvaluationService {
 
   createRetake(userId: string, instanceId: string, data: RetakeData) {
     return this.prisma.withUserContext(userId, async (tx) => {
-      const instance = await tx.evaluationInstance.findUnique({
-        where: { id: instanceId },
-        select: { id: true, attempt: { select: { id: true, enrollment: { select: { id: true, userId: true } } } } },
-      });
-
-      if (!instance || instance.attempt.enrollment.userId !== userId) ERR.notFound();
-
-      await lockedEnrollment(tx, instance!.attempt.enrollment.id, userId);
+      const instance = await lockedInstance(tx, userId, instanceId);
 
       return tx.evaluationRetake.create({
         data: {
-          evaluationInstanceId: instanceId,
+          evaluationInstanceId: instance.id,
           grade: data.grade,
           examDate: data.examDate ? new Date(data.examDate) : undefined,
         },
@@ -149,18 +69,9 @@ export class EvaluationService {
 
   deleteRetake(userId: string, retakeId: string): Promise<OkResult> {
     return this.prisma.withUserContext(userId, async (tx) => {
-      const retake = await tx.evaluationRetake.findUnique({
-        where: { id: retakeId },
-        select: {
-          id: true,
-          instance: { select: { attempt: { select: { enrollment: { select: { id: true, userId: true } } } } } },
-        },
-      });
+      const retake = await lockedRetake(tx, userId, retakeId);
 
-      if (!retake || retake.instance.attempt.enrollment.userId !== userId) ERR.notFound();
-
-      await lockedEnrollment(tx, retake!.instance.attempt.enrollment.id, userId);
-      await tx.evaluationRetake.delete({ where: { id: retakeId } });
+      await tx.evaluationRetake.delete({ where: { id: retake.id } });
 
       return { ok: true };
     });
@@ -168,29 +79,13 @@ export class EvaluationService {
 
   createFinalExam(userId: string, attemptId: string, data: FinalExamData) {
     return this.prisma.withUserContext(userId, async (tx) => {
-      const attempt = await this.ownedAttempt(tx, userId, attemptId);
+      const attempt = await ownedAttempt(tx, userId, attemptId);
 
       await lockedEnrollment(tx, attempt.enrollmentId, userId);
-
-      const siblings = await tx.subjectAttempt.count({
-        where: {
-          studyPlanEnrollmentId: attempt.enrollmentId,
-          subjectId: attempt.subject.id,
-          status: "IN_PROGRESS",
-          annulledAt: null,
-          id: { not: attemptId },
-        },
-      });
-
-      const blocked = checkFinalAllowed({
+      await assertFinalSlot(tx, attempt.enrollmentId, attempt.subject.id, attemptId, {
         requiresFinal: attempt.subject.requiresFinal,
         grade: data.grade,
-        siblingInProgress: siblings > 0,
       });
-
-      if (blocked === "FINAL_BLOCKED_BY_IN_PROGRESS") ERR.conflict(blocked, "Hay cursada en progreso para esa materia");
-
-      if (blocked) ERR.conflict(blocked, "Materia sin final obligatorio");
 
       return tx.finalExam.create({
         data: {
@@ -207,43 +102,12 @@ export class EvaluationService {
 
   updateFinalExam(userId: string, finalId: string, data: FinalExamUpdateData) {
     return this.prisma.withUserContext(userId, async (tx) => {
-      const final = await tx.finalExam.findUnique({
-        where: { id: finalId },
-        select: {
-          ...finalExamSelect,
-          attempt: {
-            select: {
-              id: true,
-              enrollment: { select: { id: true, userId: true } },
-              subject: { select: { id: true, requiresFinal: true } },
-            },
-          },
-        },
+      const final = await lockedFinal(tx, userId, finalId);
+
+      await assertFinalSlot(tx, final.enrollmentId, final.subjectId, final.attemptId, {
+        requiresFinal: final.requiresFinal,
+        grade: data.grade !== undefined ? data.grade : final.grade,
       });
-
-      if (!final || final.attempt.enrollment.userId !== userId) ERR.notFound();
-
-      await lockedEnrollment(tx, final!.attempt.enrollment.id, userId);
-
-      const siblings = await tx.subjectAttempt.count({
-        where: {
-          studyPlanEnrollmentId: final!.attempt.enrollment.id,
-          subjectId: final!.attempt.subject.id,
-          status: "IN_PROGRESS",
-          annulledAt: null,
-          id: { not: final!.attempt.id },
-        },
-      });
-
-      const blocked = checkFinalAllowed({
-        requiresFinal: final!.attempt.subject.requiresFinal,
-        grade: data.grade !== undefined ? data.grade : final!.grade,
-        siblingInProgress: siblings > 0,
-      });
-
-      if (blocked === "FINAL_BLOCKED_BY_IN_PROGRESS") ERR.conflict(blocked, "Hay cursada en progreso para esa materia");
-
-      if (blocked) ERR.conflict(blocked, "Materia sin final obligatorio");
 
       const patch: Prisma.FinalExamUpdateInput = { updatedBy: userId };
 
@@ -257,27 +121,12 @@ export class EvaluationService {
     });
   }
 
-  private async ownedAttempt(tx: Prisma.TransactionClient, userId: string, attemptId: string) {
-    const attempt = await tx.subjectAttempt.findUnique({
-      where: { id: attemptId },
-      select: {
-        id: true,
-        enrollment: { select: { id: true, userId: true } },
-        subject: { select: { id: true, requiresFinal: true } },
-      },
-    });
-
-    if (!attempt || attempt.enrollment.userId !== userId) ERR.notFound();
-
-    return { id: attempt!.id, enrollmentId: attempt!.enrollment.id, subject: attempt!.subject };
-  }
-
   private checkCustomName(type: string, customTypeName: string | null | undefined): void {
     if (type === "OTHER" && !customTypeName) ERR.unprocessable("INVALID_TYPE_NAME", "OTHER requiere nombre");
   }
 
   private async createInstanceTx(tx: Prisma.TransactionClient, userId: string, attemptId: string, data: InstanceData) {
-    const attempt = await this.ownedAttempt(tx, userId, attemptId);
+    const attempt = await ownedAttempt(tx, userId, attemptId);
 
     await lockedEnrollment(tx, attempt.enrollmentId, userId);
     this.checkCustomName(data.type, data.customTypeName);
