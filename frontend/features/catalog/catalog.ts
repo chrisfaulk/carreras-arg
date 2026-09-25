@@ -76,6 +76,10 @@ export function getCareers(universityId: string, page: number): Promise<Paged<Ca
   return get<Paged<Career>>(`/careers?universityId=${universityId}&page=${page}&limit=20`);
 }
 
+export function getAllCareers(page: number): Promise<Paged<Career> | null> {
+  return get<Paged<Career>>(`/careers?page=${page}&limit=20`);
+}
+
 export function getCareer(id: string): Promise<CareerDetail | null> {
   return get<CareerDetail>(`/careers/${id}`);
 }
