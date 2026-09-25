@@ -8,11 +8,12 @@ import Button from "@/components/ui/button";
 import TextField from "@/components/ui/text-field";
 import { toast } from "@/components/ui/toaster";
 import { api } from "@/lib/api";
+import { clearDraft, useDraftState } from "./form-draft";
 
 export default function LoginForm({ className }: { className?: string }) {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useDraftState("login", "email");
+  const [password, setPassword] = useDraftState("login", "password");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState(false);
 
@@ -38,6 +39,8 @@ export default function LoginForm({ className }: { className?: string }) {
 
       router.push("/dashboard/profile");
       router.refresh();
+
+      clearDraft("login");
     } catch {
       toast("Email o contraseña inválidos");
 

@@ -7,11 +7,12 @@ import Button from "@/components/ui/button";
 import TextField from "@/components/ui/text-field";
 import { toast } from "@/components/ui/toaster";
 import { api } from "@/lib/api";
+import { clearDraft, useDraftState } from "./form-draft";
 
 export default function ResetForm({ className }: { className?: string }) {
   const router = useRouter();
   const token = useSearchParams().get("token");
-  const [password, setPassword] = useState("");
+  const [password, setPassword] = useDraftState("reset", "password");
   const [error, setError] = useState<string | undefined>(undefined);
   const [pending, setPending] = useState(false);
 
@@ -33,6 +34,8 @@ export default function ResetForm({ className }: { className?: string }) {
       });
 
       toast("Contraseña actualizada");
+
+      clearDraft("reset");
 
       router.push("/login");
     } catch {

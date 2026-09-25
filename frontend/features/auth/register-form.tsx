@@ -9,14 +9,16 @@ import CheckboxField from "@/components/ui/checkbox-field";
 import TextField from "@/components/ui/text-field";
 import { toast } from "@/components/ui/toaster";
 import { api } from "@/lib/api";
+import { clearDraft, useDraftState } from "./form-draft";
 
 export default function RegisterForm({ className }: { className?: string }) {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [password, setPassword] = useState("");
-  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
+  const [email, setEmail] = useDraftState("register", "email");
+  const [username, setUsername] = useDraftState("register", "username");
+  const [displayName, setDisplayName] = useDraftState("register", "displayName");
+  const [password, setPassword] = useDraftState("register", "password");
+  const [privacy, setPrivacy] = useDraftState("register", "acceptedPrivacy");
+  const acceptedPrivacy = privacy === "1";
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState(false);
 
@@ -47,6 +49,8 @@ export default function RegisterForm({ className }: { className?: string }) {
       });
 
       toast("Cuenta creada, revisá tu email");
+
+      clearDraft("register");
 
       router.push("/login");
     } catch {
@@ -104,7 +108,7 @@ export default function RegisterForm({ className }: { className?: string }) {
         id="acceptedPrivacy"
         label="Acepto la política de privacidad y los términos"
         checked={acceptedPrivacy}
-        onChange={(e) => setAcceptedPrivacy(e.target.checked)}
+        onChange={(e) => setPrivacy(e.target.checked ? "1" : "")}
         error={errors.acceptedPrivacy}
         hint={
           <span>

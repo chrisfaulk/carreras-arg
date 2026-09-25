@@ -6,9 +6,10 @@ import Button from "@/components/ui/button";
 import TextField from "@/components/ui/text-field";
 import { toast } from "@/components/ui/toaster";
 import { api } from "@/lib/api";
+import { clearDraft, useDraftState } from "./form-draft";
 
 export default function ForgotForm({ className }: { className?: string }) {
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useDraftState("forgot", "email");
   const [error, setError] = useState<string | undefined>(undefined);
   const [pending, setPending] = useState(false);
 
@@ -33,6 +34,8 @@ export default function ForgotForm({ className }: { className?: string }) {
     }
 
     toast("Si el email existe, enviamos un link");
+
+    clearDraft("forgot");
 
     setPending(false);
   }
