@@ -24,3 +24,69 @@ jobs:
           ! grep -rn "Patch(" backend frontend --include="*.ts" --include="*.tsx"
           ! grep -rn "method: 'PATCH'" backend frontend --include="*.ts" --include="*.tsx"
           ! grep -rn 'method: "PATCH"' backend frontend --include="*.ts" --include="*.tsx"
+      - name: anti-remote-fonts
+        run: |
+          ! grep -rn "fonts.googleapis.com" frontend --include="*.ts" --include="*.tsx" --include="*.css" --include="*.js"
+          ! grep -rn "fonts.gstatic.com" frontend --include="*.ts" --include="*.tsx" --include="*.css" --include="*.js"
+
+  a11y:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @carreras-arg/frontend build
+      - run: pnpm --filter @carreras-arg/frontend exec playwright install --with-deps chromium
+      - run: pnpm --filter @carreras-arg/frontend test:a11y
+      - name: chrome-path
+        run: echo "CHROME_PATH=$(pnpm --filter @carreras-arg/frontend exec node -p "require('playwright-core').chromium.executablePath()")" >> $GITHUB_ENV
+      - run: pnpm --filter @carreras-arg/frontend exec lhci autorun
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: carreras_arg
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/carreras_arg
+      JWT_SECRET: test-secret-1234567890
+      GOOGLE_CLIENT_ID: test
+      GOOGLE_CLIENT_SECRET: test
+      RESEND_API_KEY: test
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      ADMIN_SEED_EMAIL: admin@example.com
+      ALLOWLIST_IPS: ""
+      CORS_ORIGINS: http://localhost:3000
+      PORT: 3001
+      E2E_WIPE: 1
+      E2E_BASE_URL: http://localhost:3001
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @carreras-arg/backend exec prisma migrate deploy
+      - run: pnpm --filter @carreras-arg/backend build
+      - run: pnpm --filter @carreras-arg/backend start & sleep 8; curl --retry 10 --retry-delay 2 --fail http://localhost:3001/api/health
+      - run: node backend/test/e2e-correlatives.mjs

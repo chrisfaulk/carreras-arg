@@ -3,5 +3,8 @@ oxlint.config.ts
 frontend/next-env.d.ts
 backend/dist/
 frontend/.next/
+frontend/test-results/
+frontend/.lighthouseci/
+frontend/content/
 pnpm-lock.yaml
 *.md
