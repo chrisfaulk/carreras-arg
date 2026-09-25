@@ -29,6 +29,7 @@ export default async function SiteHeader({ className }: { className?: string }) 
             ) : null}
           </p>
           <p className="flex items-center gap-2">
+            <ThemeToggle value={theme ?? "system"} />
             {session ? (
               <LogoutButton />
             ) : (
@@ -41,7 +42,6 @@ export default async function SiteHeader({ className }: { className?: string }) 
                 </Button>
               </>
             )}
-            <ThemeToggle value={theme ?? "system"} />
           </p>
         </nav>
       </Container>
