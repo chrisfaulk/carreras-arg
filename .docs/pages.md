@@ -36,6 +36,7 @@
 | `/dashboard/enrollments/:id` | Tabs por estado (Cursables/En final/Cursando/Aprobadas) + badges + banner `insufficientCorrelatives` (toast, no bloqueante). Datos de `GET /enrollments/:id/cursables` y `GET /study-plans/:id/subjects?status=`. |
 | `/dashboard/attempts/:id` | Detalle cursada: instancias + retakes + final + botón "Cerrar cursada" (Fase 2). |
 | `/dashboard/profile` | Form `display_name`, toggle `is_public` (`PUT /users/me`), export JSON, zona peligrosa borrado soft. |
+| `/dashboard/catalog` | Catálogo privado (requiere sesión): filtro por universidad + lista paginada de carreras con chips de planes (`?universityId=&page=`), reusa catálogo público. Empty con CTA a login si anónimo. |
 
 ## Admin (guard `is_admin`, misma grilla que catálogo público + acciones)
 

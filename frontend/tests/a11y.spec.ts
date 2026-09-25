@@ -13,6 +13,7 @@ const ROUTES = [
   "/legal/terms",
   "/legal/cookies",
   "/dashboard/profile",
+  "/dashboard/catalog",
 ];
 
 for (const route of ROUTES) {

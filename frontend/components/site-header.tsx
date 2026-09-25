@@ -20,9 +20,14 @@ export default async function SiteHeader({ className }: { className?: string }) 
               Carreras ARG
             </Link>
             {session ? (
-              <Link href="/dashboard/profile" className="hidden text-sm text-muted hover:text-primary sm:inline">
-                Mi panel
-              </Link>
+              <>
+                <Link href="/dashboard/profile" className="hidden text-sm text-muted hover:text-primary sm:inline">
+                  Mi panel
+                </Link>
+                <Link href="/dashboard/catalog" className="hidden text-sm text-muted hover:text-primary sm:inline">
+                  Catálogo
+                </Link>
+              </>
             ) : null}
           </p>
           <p className="flex items-center gap-2">
