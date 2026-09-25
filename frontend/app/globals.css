@@ -101,6 +101,16 @@
   .tnum {
     font-variant-numeric: tabular-nums;
   }
+
+  th {
+    font-weight: 600;
+    text-align: left;
+  }
+
+  .numeric {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
 }
 
 @layer components {
@@ -128,6 +138,31 @@
 
   .prose-legal a:hover {
     color: var(--color-primary);
+  }
+
+  .prose-legal table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+  }
+
+  .prose-legal th,
+  .prose-legal td {
+    padding: var(--spacing-2) var(--spacing-3);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .prose-legal thead th {
+    font-weight: 600;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .prose-legal tbody tr + tr td {
+    border-top: 1px solid var(--color-border);
   }
 
   .shimmer {
