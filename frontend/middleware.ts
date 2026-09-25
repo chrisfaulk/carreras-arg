@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 export function middleware(request: NextRequest): NextResponse {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
-  const policy = `default-src 'self'; script-src 'self' 'nonce-${nonce}'`;
+  const evalSrc = process.env.NODE_ENV === "production" ? "" : " 'unsafe-eval'";
+  const policy = `default-src 'self'; script-src 'self' 'nonce-${nonce}'${evalSrc}`;
 
   const headers = new Headers(request.headers);
 
