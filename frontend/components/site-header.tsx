@@ -19,12 +19,9 @@ export default async function SiteHeader({ className }: { className?: string }) 
             <Link href="/" className="text-md font-semibold tracking-tight">
               Carreras ARG
             </Link>
-            <Link href="/universities" className="hidden text-sm text-muted hover:text-primary sm:inline">
-              Universidades
-            </Link>
             {session ? (
               <Link href="/dashboard/profile" className="hidden text-sm text-muted hover:text-primary sm:inline">
-                Mi perfil
+                Mi panel
               </Link>
             ) : null}
           </p>
@@ -33,14 +30,9 @@ export default async function SiteHeader({ className }: { className?: string }) 
             {session ? (
               <LogoutButton />
             ) : (
-              <>
-                <Button variant="ghost" size="sm" href="/login">
-                  Entrar
-                </Button>
-                <Button variant="primary" size="sm" href="/register">
-                  Crear cuenta
-                </Button>
-              </>
+              <Button variant="primary" size="sm" href="/login">
+                Ingresar
+              </Button>
             )}
           </p>
         </nav>
