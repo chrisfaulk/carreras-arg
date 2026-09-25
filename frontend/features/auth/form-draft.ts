@@ -16,6 +16,10 @@ export function clearDraft(form: string): void {
   }
 }
 
+export function clearAllDrafts(): void {
+  drafts.clear();
+}
+
 export function useDraftState(form: string, field: string, initial = ""): [string, (next: string) => void] {
   const [value, setValue] = useState(() => drafts.get(key(form, field)) ?? initial);
 

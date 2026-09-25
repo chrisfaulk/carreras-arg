@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import CookieBanner from "@/features/cookies/cookie-banner";
+import DraftCleaner from "@/features/auth/draft-cleaner";
 import Providers from "./providers";
 import Toaster from "@/components/ui/toaster";
 import SiteHeader from "@/components/site-header";
@@ -37,6 +38,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="es" className={inter.className}>
       <body>
         <ThemeScope initial={theme ?? "system"}>
+          <DraftCleaner />
           <SiteHeader />
           <Providers>
             <div className="flex-1">{children}</div>
