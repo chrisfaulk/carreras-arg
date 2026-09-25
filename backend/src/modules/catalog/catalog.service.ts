@@ -4,7 +4,8 @@ import { z } from "zod";
 import { PrismaService } from "../../prisma.service";
 import { ERR, OkResult } from "../../shared/api-error";
 import { ListQuery, Paged, paged, pagination } from "../../shared/pagination";
-import { hasPath } from "./correlative-graph";
+import { hasPath, buildAdj } from "./correlative-graph";
+import { assertNoChildren, createWithAudit, throwDuplicate, writeWithAudit } from "./admin-write";
 
 export const universitySchema = z.object({ name: z.string().min(1).max(120) });
 
@@ -85,26 +86,11 @@ function prune(fields: Array<[string, JsonField]>): Prisma.InputJsonValue {
   return Object.fromEntries(kept);
 }
 
-async function audit(
-  tx: Prisma.TransactionClient,
-  actorId: string,
-  action: string,
-  entity: string,
-  entityId: string,
-  diff: Prisma.InputJsonValue,
-): Promise<void> {
-  await tx.auditLog.create({ data: { actorId, action, entity, entityId, diffJson: diff } });
-}
-
-function isDuplicate(error: unknown): error is Prisma.PrismaClientKnownRequestError {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
-}
-
 @Injectable()
 export class CatalogService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private tx<T>(
+  private write<T>(
     actorId: string,
     action: string,
     entity: string,
@@ -112,13 +98,7 @@ export class CatalogService {
     diff: Prisma.InputJsonValue,
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
   ): Promise<T> {
-    return this.prisma.$transaction(async (t) => {
-      const out = await fn(t);
-
-      await audit(t, actorId, action, entity, entityId, diff);
-
-      return out;
-    });
+    return writeWithAudit(this.prisma, actorId, action, entity, entityId, diff, fn);
   }
 
   async listUniversities(query: ListQuery): Promise<Paged<{ id: string; name: string }>> {
@@ -155,31 +135,19 @@ export class CatalogService {
 
   async createUniversity(actorId: string, data: UniversityData) {
     try {
-      const row = await this.prisma.university.create({
-        data: { name: data.name, createdBy: actorId },
-        select: { id: true, name: true },
-      });
-
-      await this.prisma.auditLog.create({
-        data: {
-          actorId,
-          action: "CREATE",
-          entity: "university",
-          entityId: row.id,
-          diffJson: { name: data.name },
-        },
-      });
-
-      return row;
-    } catch (error) {
-      if (isDuplicate(error)) ERR.conflict("DUPLICATE", "Universidad duplicada");
-
-      throw error;
+      return await createWithAudit(this.prisma, actorId, "university", { name: data.name }, (tx) =>
+        tx.university.create({
+          data: { name: data.name, createdBy: actorId },
+          select: { id: true, name: true },
+        }),
+      );
+    } catch (cause) {
+      throwDuplicate(cause, "DUPLICATE", "Universidad duplicada");
     }
   }
 
   updateUniversity(actorId: string, id: string, data: UniversityData) {
-    return this.tx(actorId, "UPDATE", "university", id, { name: data.name }, (t) =>
+    return this.write(actorId, "UPDATE", "university", id, { name: data.name }, (t) =>
       t.university.update({
         where: { id },
         data: { name: data.name, updatedBy: actorId },
@@ -189,16 +157,20 @@ export class CatalogService {
   }
 
   async deleteUniversity(actorId: string, id: string): Promise<OkResult> {
-    const kids = await this.prisma.career.count({ where: { universityId: id } });
+    assertNoChildren(
+      await this.prisma.career.count({ where: { universityId: id } }),
+      "DELETE_BLOCKED_BY_CHILDREN",
+      "Tiene carreras asociadas",
+    );
 
-    if (kids > 0) ERR.conflict("DELETE_BLOCKED_BY_CHILDREN", "Tiene carreras asociadas");
-
-    await this.tx(actorId, "DELETE", "university", id, {}, (t) => t.university.delete({ where: { id } }));
+    await this.write(actorId, "DELETE", "university", id, {}, (t) => t.university.delete({ where: { id } }));
 
     return { ok: true };
   }
 
   async listCareers(query: ListQuery) {
+    if (query.includePlans === "1") return this.listCareersWithPlans(query);
+
     const { page, limit, skip } = pagination(query);
     const where: Prisma.CareerWhereInput = {};
 
@@ -222,6 +194,58 @@ export class CatalogService {
     });
   }
 
+  async listCareersWithPlans(query: ListQuery) {
+    const { page, limit, skip } = pagination(query);
+    const where: Prisma.CareerWhereInput = {};
+
+    if (query.universityId) where.universityId = query.universityId;
+
+    if (query.q) where.name = { startsWith: query.q, mode: "insensitive" };
+
+    return this.prisma.$transaction(async (t) => {
+      const [careers, total] = await Promise.all([
+        t.career.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { name: "asc" },
+          select: {
+            id: true,
+            name: true,
+            universityId: true,
+            university: { select: { id: true, name: true } },
+          },
+        }),
+        t.career.count({ where }),
+      ]);
+
+      const plans =
+        careers.length > 0
+          ? await t.studyPlan.findMany({
+              where: { careerId: { in: careers.map((career) => career.id) } },
+              orderBy: { year: "desc" },
+              select: { id: true, careerId: true, year: true, requiredElectives: true },
+            })
+          : [];
+
+      const byCareer = new Map<string, typeof plans>();
+
+      for (const plan of plans) {
+        const current = byCareer.get(plan.careerId);
+
+        if (current) current.push(plan);
+        else byCareer.set(plan.careerId, [plan]);
+      }
+
+      return paged(
+        careers.map((career) => ({ ...career, plans: byCareer.get(career.id) ?? [] })),
+        total,
+        page,
+        limit,
+      );
+    });
+  }
+
   async getCareer(id: string) {
     const row = await this.prisma.career.findUnique({
       where: { id },
@@ -235,31 +259,24 @@ export class CatalogService {
 
   async createCareer(actorId: string, data: CareerData) {
     try {
-      const row = await this.prisma.career.create({
-        data: { name: data.name, universityId: data.universityId, createdBy: actorId },
-        select: { id: true, name: true, universityId: true },
-      });
-
-      await this.prisma.auditLog.create({
-        data: {
-          actorId,
-          action: "CREATE",
-          entity: "career",
-          entityId: row.id,
-          diffJson: { name: data.name, universityId: data.universityId },
-        },
-      });
-
-      return row;
-    } catch (error) {
-      if (isDuplicate(error)) ERR.conflict("DUPLICATE", "Carrera duplicada en esa universidad");
-
-      throw error;
+      return await createWithAudit(
+        this.prisma,
+        actorId,
+        "career",
+        { name: data.name, universityId: data.universityId },
+        (tx) =>
+          tx.career.create({
+            data: { name: data.name, universityId: data.universityId, createdBy: actorId },
+            select: { id: true, name: true, universityId: true },
+          }),
+      );
+    } catch (cause) {
+      throwDuplicate(cause, "DUPLICATE", "Carrera duplicada en esa universidad");
     }
   }
 
   updateCareer(actorId: string, id: string, data: UniversityData) {
-    return this.tx(actorId, "UPDATE", "career", id, { name: data.name }, (t) =>
+    return this.write(actorId, "UPDATE", "career", id, { name: data.name }, (t) =>
       t.career.update({
         where: { id },
         data: { name: data.name, updatedBy: actorId },
@@ -269,11 +286,13 @@ export class CatalogService {
   }
 
   async deleteCareer(actorId: string, id: string): Promise<OkResult> {
-    const kids = await this.prisma.studyPlan.count({ where: { careerId: id } });
+    assertNoChildren(
+      await this.prisma.studyPlan.count({ where: { careerId: id } }),
+      "DELETE_BLOCKED_BY_CHILDREN",
+      "Tiene planes asociados",
+    );
 
-    if (kids > 0) ERR.conflict("DELETE_BLOCKED_BY_CHILDREN", "Tiene planes asociados");
-
-    await this.tx(actorId, "DELETE", "career", id, {}, (t) => t.career.delete({ where: { id } }));
+    await this.write(actorId, "DELETE", "career", id, {}, (t) => t.career.delete({ where: { id } }));
 
     return { ok: true };
   }
@@ -316,31 +335,24 @@ export class CatalogService {
 
   async createPlan(actorId: string, data: PlanData) {
     try {
-      const row = await this.prisma.studyPlan.create({
-        data: {
-          careerId: data.careerId,
-          year: data.year,
-          requiredElectives: data.requiredElectives,
-          createdBy: actorId,
-        },
-        select: { id: true, careerId: true, year: true, requiredElectives: true },
-      });
-
-      await this.prisma.auditLog.create({
-        data: {
-          actorId,
-          action: "CREATE",
-          entity: "study_plan",
-          entityId: row.id,
-          diffJson: { careerId: data.careerId, year: data.year },
-        },
-      });
-
-      return row;
-    } catch (error) {
-      if (isDuplicate(error)) ERR.conflict("DUPLICATE", "Plan duplicado para esa carrera");
-
-      throw error;
+      return await createWithAudit(
+        this.prisma,
+        actorId,
+        "study_plan",
+        { careerId: data.careerId, year: data.year },
+        (tx) =>
+          tx.studyPlan.create({
+            data: {
+              careerId: data.careerId,
+              year: data.year,
+              requiredElectives: data.requiredElectives,
+              createdBy: actorId,
+            },
+            select: { id: true, careerId: true, year: true, requiredElectives: true },
+          }),
+      );
+    } catch (cause) {
+      throwDuplicate(cause, "DUPLICATE", "Plan duplicado para esa carrera");
     }
   }
 
@@ -350,17 +362,19 @@ export class CatalogService {
       ["requiredElectives", data.requiredElectives],
     ]);
 
-    return this.tx(actorId, "UPDATE", "study_plan", id, diff, (t) =>
+    return this.write(actorId, "UPDATE", "study_plan", id, diff, (t) =>
       t.studyPlan.update({ where: { id }, data: { ...data, updatedBy: actorId } }),
     );
   }
 
   async deletePlan(actorId: string, id: string): Promise<OkResult> {
-    const kids = await this.prisma.userStudyPlanEnrollment.count({ where: { studyPlanId: id } });
+    assertNoChildren(
+      await this.prisma.userStudyPlanEnrollment.count({ where: { studyPlanId: id } }),
+      "DELETE_BLOCKED_BY_CHILDREN",
+      "Tiene inscriptos",
+    );
 
-    if (kids > 0) ERR.conflict("DELETE_BLOCKED_BY_CHILDREN", "Tiene inscriptos");
-
-    await this.tx(actorId, "DELETE", "study_plan", id, {}, (t) => t.studyPlan.delete({ where: { id } }));
+    await this.write(actorId, "DELETE", "study_plan", id, {}, (t) => t.studyPlan.delete({ where: { id } }));
 
     return { ok: true };
   }
@@ -391,32 +405,25 @@ export class CatalogService {
 
   async createSubject(actorId: string, data: SubjectData) {
     try {
-      const row = await this.prisma.subject.create({
-        data: {
-          name: data.name,
-          studyPlanId: data.studyPlanId,
-          isElective: data.isElective,
-          requiresFinal: data.requiresFinal,
-          createdBy: actorId,
-        },
-        select: { id: true, studyPlanId: true, name: true, isElective: true, requiresFinal: true },
-      });
-
-      await this.prisma.auditLog.create({
-        data: {
-          actorId,
-          action: "CREATE",
-          entity: "subject",
-          entityId: row.id,
-          diffJson: { name: data.name, studyPlanId: data.studyPlanId },
-        },
-      });
-
-      return row;
-    } catch (error) {
-      if (isDuplicate(error)) ERR.conflict("DUPLICATE", "Materia duplicada en ese plan");
-
-      throw error;
+      return await createWithAudit(
+        this.prisma,
+        actorId,
+        "subject",
+        { name: data.name, studyPlanId: data.studyPlanId },
+        (tx) =>
+          tx.subject.create({
+            data: {
+              name: data.name,
+              studyPlanId: data.studyPlanId,
+              isElective: data.isElective,
+              requiresFinal: data.requiresFinal,
+              createdBy: actorId,
+            },
+            select: { id: true, studyPlanId: true, name: true, isElective: true, requiresFinal: true },
+          }),
+      );
+    } catch (cause) {
+      throwDuplicate(cause, "DUPLICATE", "Materia duplicada en ese plan");
     }
   }
 
@@ -427,17 +434,19 @@ export class CatalogService {
       ["requiresFinal", data.requiresFinal],
     ]);
 
-    return this.tx(actorId, "UPDATE", "subject", id, diff, (t) =>
+    return this.write(actorId, "UPDATE", "subject", id, diff, (t) =>
       t.subject.update({ where: { id }, data: { ...data, updatedBy: actorId } }),
     );
   }
 
   async deleteSubject(actorId: string, id: string): Promise<OkResult> {
-    const kids = await this.prisma.subjectAttempt.count({ where: { subjectId: id } });
+    assertNoChildren(
+      await this.prisma.subjectAttempt.count({ where: { subjectId: id } }),
+      "DELETE_BLOCKED_BY_CHILDREN",
+      "Tiene cursadas asociadas",
+    );
 
-    if (kids > 0) ERR.conflict("DELETE_BLOCKED_BY_CHILDREN", "Tiene cursadas asociadas");
-
-    await this.tx(actorId, "DELETE", "subject", id, {}, async (t) => {
+    await this.write(actorId, "DELETE", "subject", id, {}, async (t) => {
       await t.subjectCorrelative.deleteMany({ where: { OR: [{ subjectId: id }, { correlativeSubjectId: id }] } });
 
       return t.subject.delete({ where: { id } });
@@ -468,65 +477,42 @@ export class CatalogService {
     if (subject!.studyPlanId !== correlative!.studyPlanId)
       ERR.unprocessable("INVALID_CORRELATIVE", "Mismo plan requerido");
 
-    if (await this.reaches(data.correlativeSubjectId, id)) ERR.unprocessable("CYCLIC_CORRELATIVE", "Ciclo detectado");
+    if (await this.reaches(data.correlativeSubjectId, id, subject!.studyPlanId))
+      ERR.unprocessable("CYCLIC_CORRELATIVE", "Ciclo detectado");
 
     try {
-      const row = await this.prisma.subjectCorrelative.create({
-        data: { subjectId: id, correlativeSubjectId: data.correlativeSubjectId, type: data.type },
-      });
+      return await createWithAudit(
+        this.prisma,
+        actorId,
+        "subject_correlative",
+        { correlativeSubjectId: data.correlativeSubjectId, type: data.type, subjectId: id },
+        async (tx) => {
+          const row = await tx.subjectCorrelative.create({
+            data: { subjectId: id, correlativeSubjectId: data.correlativeSubjectId, type: data.type },
+          });
 
-      await this.prisma.auditLog.create({
-        data: {
-          actorId,
-          action: "CREATE",
-          entity: "subject_correlative",
-          entityId: id,
-          diffJson: { correlativeSubjectId: data.correlativeSubjectId, type: data.type },
+          return { id: row.id.toString(), correlativeSubjectId: data.correlativeSubjectId, type: data.type };
         },
-      });
-
-      return { id: row.id.toString(), correlativeSubjectId: data.correlativeSubjectId, type: data.type };
-    } catch (error) {
-      if (isDuplicate(error)) ERR.conflict("DUPLICATE", "Correlativa duplicada");
-
-      throw error;
+      );
+    } catch (cause) {
+      throwDuplicate(cause, "DUPLICATE", "Correlativa duplicada");
     }
   }
 
   async removeCorrelative(actorId: string, id: string, correlativeId: string): Promise<OkResult> {
-    await this.tx(actorId, "DELETE", "subject_correlative", id, { correlativeSubjectId: correlativeId }, (t) =>
+    await this.write(actorId, "DELETE", "subject_correlative", id, { correlativeSubjectId: correlativeId }, (t) =>
       t.subjectCorrelative.deleteMany({ where: { subjectId: id, correlativeSubjectId: correlativeId } }),
     );
 
     return { ok: true };
   }
 
-  private async reaches(from: string, target: string): Promise<boolean> {
-    const adj = new Map<string, string[]>();
-    const seen = new Set<string>([from]);
-    const queue = [from];
+  private async reaches(from: string, target: string, planId: string): Promise<boolean> {
+    const edges = await this.prisma.subjectCorrelative.findMany({
+      where: { subject: { studyPlanId: planId } },
+      select: { subjectId: true, correlativeSubjectId: true },
+    });
 
-    while (queue.length > 0) {
-      const cur = queue.shift()!;
-
-      const next = await this.prisma.subjectCorrelative.findMany({
-        where: { subjectId: cur },
-        select: { correlativeSubjectId: true },
-      });
-
-      adj.set(
-        cur,
-        next.map((n) => n.correlativeSubjectId),
-      );
-
-      for (const id of adj.get(cur) ?? []) {
-        if (!seen.has(id)) {
-          seen.add(id);
-          queue.push(id);
-        }
-      }
-    }
-
-    return hasPath(adj, from, target);
+    return hasPath(buildAdj(edges), from, target);
   }
 }

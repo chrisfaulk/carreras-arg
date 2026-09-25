@@ -1,3 +1,21 @@
+export interface CorrelativeEdge {
+  subjectId: string;
+  correlativeSubjectId: string;
+}
+
+export function buildAdj(edges: CorrelativeEdge[]): Map<string, string[]> {
+  const adj = new Map<string, string[]>();
+
+  for (const edge of edges) {
+    const current = adj.get(edge.subjectId);
+
+    if (current) current.push(edge.correlativeSubjectId);
+    else adj.set(edge.subjectId, [edge.correlativeSubjectId]);
+  }
+
+  return adj;
+}
+
 export function hasPath(adj: Map<string, string[]>, from: string, target: string): boolean {
   const seen = new Set<string>([from]);
   const queue = [from];
